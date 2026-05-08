@@ -904,8 +904,8 @@ export function SpoolFormModal({
               </>
             ) : (
               <>
-                 <Save className="w-4 h-4" />
-                 {isEditing ? t('common.save') : isCopying ? t('inventory.copySpool') : t('inventory.addSpool')}
+                <Save className="w-4 h-4" />
+                {isEditing ? t('common.save') : isCopying ? t('inventory.copySpool') : t('inventory.addSpool')}
               </>
             )}
           </Button>
