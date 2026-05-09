@@ -719,8 +719,12 @@ export function SpoolFormModal({
           </button>
         </div>
 
-        {/* Quick Add toggle — only in create mode */}
-        {!isEditing && (
+        {/* Quick Add toggle — only in create mode (not edit, not copy).
+            In copy mode the modal title is the singular "Copy Spool", so the
+            quantity-driven bulkCreateMutation path would silently produce N
+            copies under a misleading title — keep this toggle out of that
+            mode entirely. */}
+        {mode === 'create' && (
           <div className="flex items-center justify-between px-4 py-2 border-b border-bambu-dark-tertiary flex-shrink-0">
             <div className="flex items-center gap-2">
               <Zap className="w-4 h-4 text-amber-400" />

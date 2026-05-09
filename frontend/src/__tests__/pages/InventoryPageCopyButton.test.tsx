@@ -1,8 +1,13 @@
 /**
  * Tests for the copy-spool button in InventoryPage.
  *
- * Guards against regressions where a refactor of the modal-state shape would
- * break copy mode (copy=true not being passed, or wrong spool being forwarded).
+ * Three callsites — table-row, card, and grouped-view inner row — each wire
+ * onCopy from the page-level setFormModal({ spool, mode: 'copy' }) state.
+ * These tests cover the two visually distinct components (SpoolTableRow and
+ * SpoolCard). The grouped-view path is SpoolTableGroup which renders inner
+ * SpoolTableRow rows with onCopy={onCopy ? () => onCopy(spool) : undefined} —
+ * a one-line forward of the same callback the table-row test already
+ * exercises end-to-end.
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -12,9 +17,7 @@ import InventoryPageRouter from '../../pages/InventoryPage';
 import { http, HttpResponse } from 'msw';
 import { server } from '../mocks/server';
 
-const MOCK_SPOOL = {
-  id: 5,
-  material: 'PETG',
+const baseSpool = {
   subtype: null,
   brand: 'eSun',
   color_name: 'Blue',
@@ -24,7 +27,6 @@ const MOCK_SPOOL = {
   label_weight: 1000,
   core_weight: 250,
   core_weight_catalog_id: null,
-  weight_used: 400,
   slicer_filament: null,
   slicer_filament_name: null,
   nozzle_temp_min: null,
@@ -40,7 +42,7 @@ const MOCK_SPOOL = {
   archived_at: null,
   created_at: '2025-01-01T00:00:00Z',
   updated_at: '2025-01-01T00:00:00Z',
-  k_profiles: [],
+  k_profiles: [] as never[],
   cost_per_kg: null,
   last_scale_weight: null,
   last_weighed_at: null,
@@ -49,6 +51,13 @@ const MOCK_SPOOL = {
   low_stock_threshold_pct: null,
   spoolman_id: null,
   spoolman_filament_id: null,
+};
+
+const MOCK_SPOOL = {
+  ...baseSpool,
+  id: 5,
+  material: 'PETG',
+  weight_used: 400,
 };
 
 const MOCK_SETTINGS = {
@@ -115,7 +124,7 @@ const MOCK_SETTINGS = {
   low_stock_threshold: 20.0,
 };
 
-function setupHandlers() {
+function setupHandlers(spools: unknown[] = [MOCK_SPOOL]) {
   server.use(
     http.get('/api/v1/settings/', () => HttpResponse.json(MOCK_SETTINGS)),
     http.get('/api/v1/settings/spoolman', () =>
@@ -127,9 +136,23 @@ function setupHandlers() {
         spoolman_report_partial_usage: 'true',
       })
     ),
-    http.get('/api/v1/inventory/spools', () => HttpResponse.json([MOCK_SPOOL])),
+    http.get('/api/v1/inventory/spools', () => HttpResponse.json(spools)),
     http.get('/api/v1/inventory/assignments', () => HttpResponse.json([])),
     http.get('/api/v1/inventory/catalog', () => HttpResponse.json([])),
+    // SpoolFormModal kicks off these fetches the moment it opens. Without
+    // handlers MSW would passthrough to the real network and ECONNREFUSED;
+    // those promises then resolve after the test environment is torn down,
+    // surfacing as an unhandled rejection in the modal's setState finally.
+    http.get('/api/v1/cloud/status', () =>
+      HttpResponse.json({ is_authenticated: false })
+    ),
+    http.get('/api/v1/cloud/local-presets', () =>
+      HttpResponse.json({ filament: [], printer: [], process: [] })
+    ),
+    http.get('/api/v1/cloud/builtin-filaments', () => HttpResponse.json([])),
+    http.get('/api/v1/inventory/color-catalog', () => HttpResponse.json([])),
+    http.get('/api/v1/inventory/spool-catalog', () => HttpResponse.json([])),
+    http.get('/api/v1/printers/', () => HttpResponse.json([])),
   );
 }
 
@@ -158,6 +181,26 @@ describe('InventoryPage — copy button', () => {
       expect(screen.getByRole('heading', { name: 'Copy Spool' })).toBeInTheDocument();
     });
   });
+
+  it('opens SpoolFormModal in "Copy Spool" mode when the copy button in the cards view is clicked', async () => {
+    render(<InventoryPageRouter />);
+
+    await waitFor(() => {
+      expect(screen.getAllByText('PETG').length).toBeGreaterThan(0);
+    });
+
+    // Switch to cards view
+    fireEvent.click(screen.getByRole('button', { name: /^Cards$/ }));
+
+    // The card-view copy button has the same title; wait for the card render
+    // to settle, then click it.
+    const copyButtons = await screen.findAllByTitle('Copy Spool');
+    expect(copyButtons.length).toBeGreaterThan(0);
+    fireEvent.click(copyButtons[0]);
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Copy Spool' })).toBeInTheDocument();
+    });
+  });
+
 });
-
-

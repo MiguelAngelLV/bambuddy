@@ -452,6 +452,7 @@ describe('SpoolFormModal weightTouched', () => {
       <SpoolFormModal
         isOpen={true}
         onClose={vi.fn()}
+        mode="create"
         currencySymbol="$"
         spoolmanMode={true}
       />
@@ -505,6 +506,7 @@ describe('SpoolFormModal weightTouched', () => {
       <SpoolFormModal
         isOpen={true}
         onClose={vi.fn()}
+        mode="create"
         currencySymbol="$"
         spoolmanMode={true}
       />
@@ -939,7 +941,7 @@ describe('SpoolFormModal copy mode', () => {
     vi.clearAllMocks();
   });
 
-  it('shows "Copy Spool" as the modal title when spool and copy=true are passed', async () => {
+  it('shows "Copy Spool" as the modal title when spool and mode="copy" are passed', async () => {
     render(
       <SpoolFormModal
         isOpen={true}
@@ -1011,4 +1013,3 @@ describe('SpoolFormModal copy mode', () => {
     expect((payload as Record<string, unknown>).weight_used).toBe(0);
   });
 });
-

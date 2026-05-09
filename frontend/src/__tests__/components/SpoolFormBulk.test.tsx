@@ -144,6 +144,7 @@ describe('SpoolFormModal quick-add toggle', () => {
       <SpoolFormModal
         isOpen={true}
         onClose={vi.fn()}
+        mode="create"
         currencySymbol="$"
       />,
     );
@@ -178,6 +179,7 @@ describe('SpoolFormModal quick-add toggle', () => {
       <SpoolFormModal
         isOpen={true}
         onClose={vi.fn()}
+        mode="create"
         currencySymbol="$"
       />,
     );
@@ -210,6 +212,7 @@ describe('SpoolFormModal quick-add toggle', () => {
       <SpoolFormModal
         isOpen={true}
         onClose={vi.fn()}
+        mode="create"
         currencySymbol="$"
       />,
     );
@@ -227,6 +230,7 @@ describe('SpoolFormModal quick-add toggle', () => {
       <SpoolFormModal
         isOpen={true}
         onClose={vi.fn()}
+        mode="create"
         currencySymbol="$"
       />,
     );
@@ -275,6 +279,7 @@ describe('SpoolFormModal quick-add toggle', () => {
       <SpoolFormModal
         isOpen={true}
         onClose={vi.fn()}
+        mode="create"
         currencySymbol="$"
       />,
     );
