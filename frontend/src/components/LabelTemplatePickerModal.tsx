@@ -33,10 +33,16 @@ interface TemplateOption {
 
 const TEMPLATE_OPTIONS: TemplateOption[] = [
   {
-    value: 'ams_30x15',
-    i18nKey: 'ams',
-    fallbackLabel: 'AMS holder (30 × 15 mm)',
-    fallbackHint: 'Single label per page; fits the popular AMS filament label holder.',
+    value: 'ams_holder_74x33',
+    i18nKey: 'amsHolderSmall',
+    fallbackLabel: 'AMS holder — small (74 × 33 mm)',
+    fallbackHint: 'Single label per page; matches the printable label from MakerWorld model 752566 (AMS Filament Label Holder).',
+  },
+  {
+    value: 'ams_holder_75x55',
+    i18nKey: 'amsHolderLarge',
+    fallbackLabel: 'AMS holder — large (75 × 55 mm)',
+    fallbackHint: 'Single label per page; fits the cardstock-insert variant of the AMS Filament Label Holder. Roomy enough for swatch, brand, material, ID, and QR code.',
   },
   {
     value: 'box_40x30',
@@ -98,6 +104,50 @@ function searchableText(s: SpoolForLabel): string {
     .toLowerCase();
 }
 
+type SortMode = 'id' | 'color';
+
+/** Sort key for the "by colour" mode (#1410).
+ *
+ * Returns a 2-tuple so JS array compare does the right thing without us having
+ * to spell out a comparator: ``[bucket, position]``. Chromatic colours
+ * (saturation above the threshold) go in bucket 0 ordered by HSL hue, so the
+ * sheet reads as a continuous rainbow. Achromatic colours (white / grey /
+ * black, plus missing/invalid rgba) go in bucket 1 ordered by lightness so the
+ * neutrals trail at the end of the rainbow going dark → light. Multi-colour
+ * spools sort on their primary ``rgba``; their ``extra_colors`` stripe is
+ * still rendered on the label itself but doesn't drive the sort.
+ */
+function colorSortKey(rgba: string | null | undefined): [number, number] {
+  if (!rgba) return [1, 0]; // unknown colour — bucket with the neutrals at black
+  const cleaned = rgba.replace(/^#/, '').slice(0, 6);
+  if (cleaned.length !== 6) return [1, 0];
+  const r = parseInt(cleaned.slice(0, 2), 16);
+  const g = parseInt(cleaned.slice(2, 4), 16);
+  const b = parseInt(cleaned.slice(4, 6), 16);
+  if ([r, g, b].some(Number.isNaN)) return [1, 0];
+
+  const rn = r / 255;
+  const gn = g / 255;
+  const bn = b / 255;
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  const l = (max + min) / 2;
+  const delta = max - min;
+  // Saturation in the HSL definition. Achromatic cutoff at 0.1 is generous —
+  // matches what feels "grey enough" to a user picking colours, without
+  // sending dark muted colours like deep navy into the neutrals bucket.
+  const s = delta === 0 ? 0 : delta / (1 - Math.abs(2 * l - 1));
+  if (s < 0.1) return [1, l]; // neutrals: ordered black → white
+
+  let h = 0;
+  if (max === rn) h = ((gn - bn) / delta) % 6;
+  else if (max === gn) h = (bn - rn) / delta + 2;
+  else h = (rn - gn) / delta + 4;
+  h = h * 60;
+  if (h < 0) h += 360;
+  return [0, h]; // chromatic: ordered by hue 0..360
+}
+
 export function LabelTemplatePickerModal({
   isOpen,
   onClose,
@@ -111,6 +161,7 @@ export function LabelTemplatePickerModal({
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [search, setSearch] = useState('');
   const [materialFilter, setMaterialFilter] = useState<string>('');
+  const [sortMode, setSortMode] = useState<SortMode>('id');
 
   // Sync from caller and reset transient state on open. Intentionally not
   // reactive to props while open — once the user starts editing we don't want
@@ -121,15 +172,29 @@ export function LabelTemplatePickerModal({
       setSelectedIds(new Set(initialSelectedIds.filter((id) => allowed.has(id))));
       setSearch('');
       setMaterialFilter('');
+      setSortMode('id');
       setPending(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  const sortedSpools = useMemo(
-    () => [...availableSpools].sort((a, b) => a.id - b.id),
-    [availableSpools],
-  );
+  const sortedSpools = useMemo(() => {
+    const copy = [...availableSpools];
+    if (sortMode === 'color') {
+      copy.sort((a, b) => {
+        const ka = colorSortKey(a.rgba);
+        const kb = colorSortKey(b.rgba);
+        if (ka[0] !== kb[0]) return ka[0] - kb[0];
+        if (ka[1] !== kb[1]) return ka[1] - kb[1];
+        // Stable tiebreaker on ID so identical colours print in a deterministic
+        // order across renders.
+        return a.id - b.id;
+      });
+      return copy;
+    }
+    copy.sort((a, b) => a.id - b.id);
+    return copy;
+  }, [availableSpools, sortMode]);
 
   // Material chips are derived from the *full* available set so they stay
   // stable when search/material filter narrows the visible list.
@@ -189,7 +254,10 @@ export function LabelTemplatePickerModal({
 
   async function handlePick(template: SpoolLabelTemplate) {
     if (noSelection || pending) return;
-    const ids = [...selectedIds].sort((a, b) => a - b);
+    // Order matters: the backend (labels.py) prints labels in the same order
+    // we send IDs. Use the sorted list so a "by colour" sort flows through to
+    // the PDF instead of being clobbered by an ascending-ID re-sort.
+    const ids = sortedSpools.filter((s) => selectedIds.has(s.id)).map((s) => s.id);
     setPending(template);
     try {
       const blob = spoolmanMode
@@ -282,6 +350,33 @@ export function LabelTemplatePickerModal({
               ))}
             </div>
           )}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs text-bambu-gray mr-1">
+              {t('inventory.labels.sortBy.label')}
+            </span>
+            <button
+              type="button"
+              onClick={() => setSortMode('id')}
+              className={`px-2 py-0.5 text-xs rounded-full border transition ${
+                sortMode === 'id'
+                  ? 'bg-bambu-green text-bambu-dark border-bambu-green'
+                  : 'bg-bambu-dark text-bambu-gray border-bambu-dark-tertiary hover:border-bambu-gray'
+              }`}
+            >
+              {t('inventory.labels.sortBy.id')}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSortMode('color')}
+              className={`px-2 py-0.5 text-xs rounded-full border transition ${
+                sortMode === 'color'
+                  ? 'bg-bambu-green text-bambu-dark border-bambu-green'
+                  : 'bg-bambu-dark text-bambu-gray border-bambu-dark-tertiary hover:border-bambu-gray'
+              }`}
+            >
+              {t('inventory.labels.sortBy.color')}
+            </button>
+          </div>
         </div>
 
         {/* Action bar */}
