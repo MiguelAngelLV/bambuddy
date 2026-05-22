@@ -4410,6 +4410,14 @@ export default {
       metadata: 'Metadati',
       filename: 'Nome file',
     },
+    caCert: {
+      title: 'Certificato dello slicer',
+      description: 'Le stampanti virtuali usano un certificato TLS firmato dalla CA di Bambuddy. Importa questo certificato CA nell\'archivio attendibile del tuo slicer una sola volta affinché accetti la connessione — senza doverlo copiare dalla riga di comando.',
+      copy: 'Copia',
+      copied: 'Copiato',
+      download: 'Scarica',
+      fingerprint: 'SHA-256',
+    },
   },
 
   // Model Viewer
@@ -5511,6 +5519,59 @@ export default {
         pass: 'La modalità sviluppatore è attivata.',
         fail: 'La modalità sviluppatore è DISATTIVATA sulla stampante. Attivala nelle impostazioni LAN della stampante — e conferma con OK. Senza di essa le stampe non verranno avviate.',
         skip: 'Impossibile verificare — richiede una connessione attiva alla stampante.',
+      },
+    },
+  },
+
+  vpDiagnostic: {
+    title: 'Controllo configurazione — {{name}}',
+    runButton: 'Esegui controllo configurazione',
+    running: 'Controllo configurazione in corso...',
+    runFailed: 'Impossibile eseguire il controllo della configurazione: {{error}}',
+    retry: 'Esegui di nuovo',
+    overall: {
+      ok: 'Tutti i controlli superati — questa stampante virtuale è configurata correttamente.',
+      warnings: 'La stampante virtuale dovrebbe funzionare, ma alcuni aspetti richiedono attenzione.',
+      problems: 'Sono stati trovati problemi che spiegano perché lo slicer non riesce a vedere o usare questa stampante virtuale.',
+    },
+    check: {
+      enabled: {
+        title: 'Stampante virtuale abilitata',
+        fail: 'Questa stampante virtuale è spenta. Attivala per renderla rilevabile.',
+      },
+      running: {
+        title: 'Servizi in esecuzione',
+        fail: 'La stampante virtuale è abilitata ma i suoi servizi non sono in esecuzione. Controlla il log di Bambuddy — di solito li ferma un conflitto di IP di binding o un errore di permessi.',
+      },
+      bind_interface: {
+        title: 'Interfaccia di rete di binding',
+        fail: 'L\'interfaccia di binding non è impostata o non esiste più su questo host. Scegli un\'interfaccia attuale nel menu "Interfaccia di binding".',
+      },
+      access_code: {
+        title: 'Codice di accesso impostato',
+        fail: 'Nessun codice di accesso impostato. Allo slicer deve essere fornito lo stesso codice di accesso di 8 caratteri impostato qui.',
+      },
+      target_printer: {
+        title: 'Stampante di destinazione',
+        fail: 'Nessuna stampante di destinazione selezionata. La modalità proxy richiede una stampante reale a cui inoltrare.',
+        warn: 'La stampante di destinazione è offline in questo momento — l\'inoltro riprenderà quando si riconnetterà.',
+      },
+      port_ftps: {
+        title: 'Servizio di caricamento file (porta {{port}})',
+        fail: 'Nulla è in ascolto sulla porta {{port}} dell\'IP di binding, quindi lo slicer non può caricare i file. La causa abituale è un conflitto di porta su questa interfaccia.',
+      },
+      port_mqtt: {
+        title: 'Servizio di controllo (porta {{port}})',
+        fail: 'Nulla è in ascolto sulla porta {{port}} dell\'IP di binding, quindi lo slicer non può connettersi o mostrare lo stato.',
+      },
+      port_bind: {
+        title: 'Servizio di rilevamento (porta {{port}})',
+        fail: 'Nulla è in ascolto sulla porta {{port}} dell\'IP di binding, quindi l\'handshake di rilevamento dello slicer fallisce.',
+      },
+      certificate: {
+        title: 'Certificato TLS',
+        pass: 'Certificato pronto. Assicurati che il certificato CA di Bambuddy (sopra) sia importato nell\'archivio attendibile del tuo slicer.',
+        fail: 'Il certificato TLS per questa stampante virtuale è mancante. Verifica che la directory dei dati di Bambuddy sia scrivibile.',
       },
     },
   },

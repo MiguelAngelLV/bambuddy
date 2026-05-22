@@ -6383,7 +6383,46 @@ export const multiVirtualPrinterApi = {
 
   getTailscaleStatus: () =>
     request<TailscaleStatusResponse>('/virtual-printers/tailscale-status'),
+
+  getCaCertificate: () =>
+    request<VPCaCertificate>('/virtual-printers/ca-certificate'),
+
+  diagnose: (id: number) =>
+    request<VPDiagnosticResult>(`/virtual-printers/${id}/diagnostic`),
 };
+
+/** The shared CA certificate every virtual printer presents — imported once
+ *  into the slicer's trust store. Only the public certificate is returned. */
+export interface VPCaCertificate {
+  pem: string;
+  fingerprint_sha256: string;
+  not_valid_after: string;
+}
+
+export type VPDiagnosticStatus = 'pass' | 'fail' | 'warn' | 'skip';
+
+export interface VPDiagnosticCheck {
+  id:
+    | 'enabled'
+    | 'running'
+    | 'bind_interface'
+    | 'access_code'
+    | 'target_printer'
+    | 'port_ftps'
+    | 'port_mqtt'
+    | 'port_bind'
+    | 'certificate';
+  status: VPDiagnosticStatus;
+  params: Record<string, string | number>;
+}
+
+export interface VPDiagnosticResult {
+  vp_id: number;
+  vp_name: string;
+  mode: string;
+  overall: 'ok' | 'warnings' | 'problems';
+  checks: VPDiagnosticCheck[];
+}
 
 export interface TailscaleStatusResponse {
   available: boolean;

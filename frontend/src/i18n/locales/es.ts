@@ -4373,6 +4373,14 @@ export default {
       metadata: 'Metadatos',
       filename: 'Nombre de archivo',
     },
+    caCert: {
+      title: 'Certificado del laminador',
+      description: 'Las impresoras virtuales usan un certificado TLS firmado por la CA de Bambuddy. Importe este certificado de CA en el almacén de confianza de su laminador una sola vez para que acepte la conexión — sin necesidad de copiarlo desde la línea de comandos.',
+      copy: 'Copiar',
+      copied: 'Copiado',
+      download: 'Descargar',
+      fingerprint: 'SHA-256',
+    },
     howItWorks: {
       title: 'Cómo funciona',
       step1: 'En la misma LAN, las impresoras virtuales aparecen automáticamente en su laminador (Bambu Studio / OrcaSlicer) mediante detección. Desde otras redes, añádalas manualmente por dirección IP y código de acceso.',
@@ -5531,6 +5539,59 @@ export default {
         pass: 'El modo desarrollador está activado.',
         fail: 'El modo desarrollador está DESACTIVADO en la impresora. Actívelo en los ajustes de LAN de la impresora — y confirme con Aceptar. Sin él, las impresiones no comenzarán.',
         skip: 'No se pudo comprobar — requiere una conexión activa con la impresora.',
+      },
+    },
+  },
+
+  vpDiagnostic: {
+    title: 'Comprobación de configuración — {{name}}',
+    runButton: 'Ejecutar comprobación de configuración',
+    running: 'Ejecutando comprobación de configuración...',
+    runFailed: 'No se pudo ejecutar la comprobación de configuración: {{error}}',
+    retry: 'Volver a comprobar',
+    overall: {
+      ok: 'Todas las comprobaciones se superaron — esta impresora virtual está configurada correctamente.',
+      warnings: 'La impresora virtual debería funcionar, pero algunas cosas requieren atención.',
+      problems: 'Se encontraron problemas que explican por qué el laminador no puede ver ni usar esta impresora virtual.',
+    },
+    check: {
+      enabled: {
+        title: 'Impresora virtual habilitada',
+        fail: 'Esta impresora virtual está apagada. Actívela para que sea detectable.',
+      },
+      running: {
+        title: 'Servicios en ejecución',
+        fail: 'La impresora virtual está habilitada pero sus servicios no se están ejecutando. Revise el registro de Bambuddy — normalmente los detiene un conflicto de IP de enlace o un error de permisos.',
+      },
+      bind_interface: {
+        title: 'Interfaz de red de enlace',
+        fail: 'La interfaz de enlace no está configurada o ya no existe en este host. Elija una interfaz actual en el menú "Interfaz de enlace".',
+      },
+      access_code: {
+        title: 'Código de acceso configurado',
+        fail: 'No hay ningún código de acceso configurado. Al laminador se le debe dar el mismo código de acceso de 8 caracteres que configura aquí.',
+      },
+      target_printer: {
+        title: 'Impresora de destino',
+        fail: 'No hay ninguna impresora de destino seleccionada. El modo proxy necesita una impresora real a la que reenviar.',
+        warn: 'La impresora de destino está desconectada ahora mismo — el reenvío se reanudará cuando vuelva a conectarse.',
+      },
+      port_ftps: {
+        title: 'Servicio de subida de archivos (puerto {{port}})',
+        fail: 'No hay nada escuchando en el puerto {{port}} de la IP de enlace, por lo que el laminador no puede subir archivos. La causa habitual es un conflicto de puerto en esta interfaz.',
+      },
+      port_mqtt: {
+        title: 'Servicio de control (puerto {{port}})',
+        fail: 'No hay nada escuchando en el puerto {{port}} de la IP de enlace, por lo que el laminador no puede conectarse ni mostrar el estado.',
+      },
+      port_bind: {
+        title: 'Servicio de detección (puerto {{port}})',
+        fail: 'No hay nada escuchando en el puerto {{port}} de la IP de enlace, por lo que falla el protocolo de detección del laminador.',
+      },
+      certificate: {
+        title: 'Certificado TLS',
+        pass: 'Certificado listo. Asegúrese de que el certificado de CA de Bambuddy (arriba) esté importado en el almacén de confianza de su laminador.',
+        fail: 'Falta el certificado TLS de esta impresora virtual. Compruebe que el directorio de datos de Bambuddy tenga permisos de escritura.',
       },
     },
   },

@@ -4411,6 +4411,14 @@ export default {
       metadata: 'Métadonnées',
       filename: 'Nom de fichier',
     },
+    caCert: {
+      title: 'Certificat du slicer',
+      description: 'Les imprimantes virtuelles utilisent un certificat TLS signé par l\'autorité de certification Bambuddy. Importez ce certificat CA dans le magasin de confiance de votre slicer une seule fois pour qu\'il accepte la connexion — plus besoin de le copier depuis la ligne de commande.',
+      copy: 'Copier',
+      copied: 'Copié',
+      download: 'Télécharger',
+      fingerprint: 'SHA-256',
+    },
   },
 
   // Model Viewer
@@ -5512,6 +5520,59 @@ export default {
         pass: 'Le mode développeur est activé.',
         fail: 'Le mode développeur est DÉSACTIVÉ sur l\'imprimante. Activez-le dans les paramètres LAN de l\'imprimante — et confirmez avec OK. Sans lui, les impressions ne démarreront pas.',
         skip: 'Impossible à vérifier — nécessite une connexion active à l\'imprimante.',
+      },
+    },
+  },
+
+  vpDiagnostic: {
+    title: 'Vérification de configuration — {{name}}',
+    runButton: 'Lancer la vérification',
+    running: 'Vérification de configuration en cours...',
+    runFailed: 'Impossible de lancer la vérification de configuration : {{error}}',
+    retry: 'Relancer',
+    overall: {
+      ok: 'Toutes les vérifications ont réussi — cette imprimante virtuelle est correctement configurée.',
+      warnings: 'L\'imprimante virtuelle devrait fonctionner, mais certains points nécessitent votre attention.',
+      problems: 'Des problèmes ont été trouvés qui expliquent pourquoi le slicer ne voit pas ou ne peut pas utiliser cette imprimante virtuelle.',
+    },
+    check: {
+      enabled: {
+        title: 'Imprimante virtuelle activée',
+        fail: 'Cette imprimante virtuelle est désactivée. Activez-la pour qu\'elle soit détectable.',
+      },
+      running: {
+        title: 'Services en cours d\'exécution',
+        fail: 'L\'imprimante virtuelle est activée mais ses services ne sont pas en cours d\'exécution. Consultez le journal Bambuddy — un conflit d\'IP de liaison ou une erreur de permission les arrête généralement.',
+      },
+      bind_interface: {
+        title: 'Interface réseau de liaison',
+        fail: 'L\'interface de liaison n\'est pas définie ou n\'existe plus sur cet hôte. Choisissez une interface actuelle dans la liste "Interface de liaison".',
+      },
+      access_code: {
+        title: 'Code d\'accès défini',
+        fail: 'Aucun code d\'accès n\'est défini. Le slicer doit recevoir le même code d\'accès à 8 caractères que celui que vous définissez ici.',
+      },
+      target_printer: {
+        title: 'Imprimante cible',
+        fail: 'Aucune imprimante cible n\'est sélectionnée. Le mode proxy a besoin d\'une vraie imprimante vers laquelle transférer.',
+        warn: 'L\'imprimante cible est hors ligne pour le moment — le transfert reprendra dès qu\'elle se reconnectera.',
+      },
+      port_ftps: {
+        title: 'Service de téléversement de fichiers (port {{port}})',
+        fail: 'Rien n\'écoute sur le port {{port}} de l\'IP de liaison, le slicer ne peut donc pas téléverser de fichiers. La cause habituelle est un conflit de port sur cette interface.',
+      },
+      port_mqtt: {
+        title: 'Service de contrôle (port {{port}})',
+        fail: 'Rien n\'écoute sur le port {{port}} de l\'IP de liaison, le slicer ne peut donc pas se connecter ni afficher l\'état.',
+      },
+      port_bind: {
+        title: 'Service de détection (port {{port}})',
+        fail: 'Rien n\'écoute sur le port {{port}} de l\'IP de liaison, la poignée de main de détection du slicer échoue donc.',
+      },
+      certificate: {
+        title: 'Certificat TLS',
+        pass: 'Certificat prêt. Assurez-vous que le certificat CA Bambuddy (ci-dessus) est importé dans le magasin de confiance de votre slicer.',
+        fail: 'Le certificat TLS de cette imprimante virtuelle est manquant. Vérifiez que le répertoire de données Bambuddy est accessible en écriture.',
       },
     },
   },

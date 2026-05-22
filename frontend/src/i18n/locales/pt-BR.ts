@@ -4410,6 +4410,14 @@ export default {
       metadata: 'Metadados',
       filename: 'Nome do arquivo',
     },
+    caCert: {
+      title: 'Certificado do slicer',
+      description: 'As impressoras virtuais usam um certificado TLS assinado pela CA do Bambuddy. Importe este certificado CA para o armazenamento de confiança do seu slicer uma única vez para que ele aceite a conexão — sem precisar copiá-lo pela linha de comando.',
+      copy: 'Copiar',
+      copied: 'Copiado',
+      download: 'Baixar',
+      fingerprint: 'SHA-256',
+    },
   },
 
   // Model Viewer
@@ -5511,6 +5519,59 @@ export default {
         pass: 'O Modo Desenvolvedor está ativado.',
         fail: 'O Modo Desenvolvedor está DESLIGADO na impressora. Ative-o nas configurações de LAN da impressora — e confirme com OK. Sem ele, as impressões não iniciarão.',
         skip: 'Não foi possível verificar — requer uma conexão ativa com a impressora.',
+      },
+    },
+  },
+
+  vpDiagnostic: {
+    title: 'Verificação de configuração — {{name}}',
+    runButton: 'Executar verificação de configuração',
+    running: 'Executando verificação de configuração...',
+    runFailed: 'Não foi possível executar a verificação de configuração: {{error}}',
+    retry: 'Verificar novamente',
+    overall: {
+      ok: 'Todas as verificações passaram — esta impressora virtual está configurada corretamente.',
+      warnings: 'A impressora virtual deve funcionar, mas alguns pontos precisam de atenção.',
+      problems: 'Foram encontrados problemas que explicam por que o slicer não consegue ver ou usar esta impressora virtual.',
+    },
+    check: {
+      enabled: {
+        title: 'Impressora virtual habilitada',
+        fail: 'Esta impressora virtual está desligada. Ative-a para torná-la detectável.',
+      },
+      running: {
+        title: 'Serviços em execução',
+        fail: 'A impressora virtual está habilitada, mas seus serviços não estão em execução. Verifique o log do Bambuddy — geralmente um conflito de IP de vínculo ou um erro de permissão os interrompe.',
+      },
+      bind_interface: {
+        title: 'Interface de rede de vínculo',
+        fail: 'A interface de vínculo não está definida ou não existe mais neste host. Escolha uma interface atual no menu "Interface de vínculo".',
+      },
+      access_code: {
+        title: 'Código de acesso definido',
+        fail: 'Nenhum código de acesso definido. O slicer precisa receber o mesmo código de acesso de 8 caracteres que você define aqui.',
+      },
+      target_printer: {
+        title: 'Impressora de destino',
+        fail: 'Nenhuma impressora de destino selecionada. O modo proxy precisa de uma impressora real para a qual encaminhar.',
+        warn: 'A impressora de destino está offline no momento — o encaminhamento será retomado quando ela se reconectar.',
+      },
+      port_ftps: {
+        title: 'Serviço de upload de arquivos (porta {{port}})',
+        fail: 'Nada está escutando na porta {{port}} do IP de vínculo, então o slicer não consegue enviar arquivos. A causa habitual é um conflito de porta nesta interface.',
+      },
+      port_mqtt: {
+        title: 'Serviço de controle (porta {{port}})',
+        fail: 'Nada está escutando na porta {{port}} do IP de vínculo, então o slicer não consegue conectar nem mostrar o status.',
+      },
+      port_bind: {
+        title: 'Serviço de descoberta (porta {{port}})',
+        fail: 'Nada está escutando na porta {{port}} do IP de vínculo, então a negociação de descoberta do slicer falha.',
+      },
+      certificate: {
+        title: 'Certificado TLS',
+        pass: 'Certificado pronto. Verifique se o certificado CA do Bambuddy (acima) está importado no armazenamento de confiança do seu slicer.',
+        fail: 'O certificado TLS desta impressora virtual está ausente. Verifique se o diretório de dados do Bambuddy tem permissão de escrita.',
       },
     },
   },

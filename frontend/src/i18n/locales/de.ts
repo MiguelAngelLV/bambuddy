@@ -4364,6 +4364,14 @@ export default {
       metadata: 'Metadaten',
       filename: 'Dateiname',
     },
+    caCert: {
+      title: 'Slicer-Zertifikat',
+      description: 'Virtuelle Drucker verwenden ein TLS-Zertifikat, das von der Bambuddy-CA signiert ist. Importieren Sie dieses CA-Zertifikat einmalig in den Vertrauensspeicher Ihres Slicers, damit er die Verbindung akzeptiert — kein Abrufen über die Kommandozeile mehr nötig.',
+      copy: 'Kopieren',
+      copied: 'Kopiert',
+      download: 'Herunterladen',
+      fingerprint: 'SHA-256',
+    },
     howItWorks: {
       title: 'So funktioniert es',
       step1: 'Im selben LAN erscheinen virtuelle Drucker automatisch in deinem Slicer (Bambu Studio / OrcaSlicer). Aus anderen Netzwerken füge sie manuell per IP-Adresse und Zugangscode hinzu.',
@@ -5522,6 +5530,59 @@ export default {
         pass: 'Der Entwicklermodus ist aktiviert.',
         fail: 'Der Entwicklermodus ist am Drucker AUS. Aktivieren Sie ihn in den LAN-Einstellungen des Druckers — und bestätigen Sie mit OK. Ohne ihn starten Drucke nicht.',
         skip: 'Konnte nicht geprüft werden — erfordert eine aktive Verbindung zum Drucker.',
+      },
+    },
+  },
+
+  vpDiagnostic: {
+    title: 'Einrichtungsprüfung — {{name}}',
+    runButton: 'Einrichtungsprüfung ausführen',
+    running: 'Einrichtungsprüfung läuft...',
+    runFailed: 'Einrichtungsprüfung konnte nicht ausgeführt werden: {{error}}',
+    retry: 'Erneut prüfen',
+    overall: {
+      ok: 'Alle Prüfungen bestanden — dieser virtuelle Drucker ist korrekt eingerichtet.',
+      warnings: 'Der virtuelle Drucker sollte funktionieren, aber einige Punkte brauchen Aufmerksamkeit.',
+      problems: 'Es wurden Probleme gefunden, die erklären, warum der Slicer diesen virtuellen Drucker nicht sehen oder nutzen kann.',
+    },
+    check: {
+      enabled: {
+        title: 'Virtueller Drucker aktiviert',
+        fail: 'Dieser virtuelle Drucker ist ausgeschaltet. Schalten Sie ihn ein, damit er erkennbar wird.',
+      },
+      running: {
+        title: 'Dienste laufen',
+        fail: 'Der virtuelle Drucker ist aktiviert, aber seine Dienste laufen nicht. Prüfen Sie das Bambuddy-Protokoll — meist stoppt sie ein Bind-IP-Konflikt oder ein Berechtigungsfehler.',
+      },
+      bind_interface: {
+        title: 'Bind-Netzwerkschnittstelle',
+        fail: 'Die Bind-Schnittstelle ist nicht gesetzt oder existiert auf diesem Host nicht mehr. Wählen Sie im Dropdown "Bind-Schnittstelle" eine aktuelle Schnittstelle.',
+      },
+      access_code: {
+        title: 'Zugangscode gesetzt',
+        fail: 'Es ist kein Zugangscode gesetzt. Dem Slicer muss derselbe 8-stellige Zugangscode angegeben werden, den Sie hier festlegen.',
+      },
+      target_printer: {
+        title: 'Zieldrucker',
+        fail: 'Es ist kein Zieldrucker ausgewählt. Der Proxy-Modus benötigt einen echten Drucker zum Weiterleiten.',
+        warn: 'Der Zieldrucker ist gerade offline — die Weiterleitung wird fortgesetzt, sobald er sich wieder verbindet.',
+      },
+      port_ftps: {
+        title: 'Datei-Upload-Dienst (Port {{port}})',
+        fail: 'Auf Port {{port}} der Bind-IP lauscht nichts, daher kann der Slicer keine Dateien hochladen. Ursache ist meist ein Port-Konflikt auf dieser Schnittstelle.',
+      },
+      port_mqtt: {
+        title: 'Steuerungsdienst (Port {{port}})',
+        fail: 'Auf Port {{port}} der Bind-IP lauscht nichts, daher kann der Slicer sich nicht verbinden oder den Status anzeigen.',
+      },
+      port_bind: {
+        title: 'Erkennungsdienst (Port {{port}})',
+        fail: 'Auf Port {{port}} der Bind-IP lauscht nichts, daher schlägt der Erkennungs-Handshake des Slicers fehl.',
+      },
+      certificate: {
+        title: 'TLS-Zertifikat',
+        pass: 'Zertifikat bereit. Stellen Sie sicher, dass das Bambuddy-CA-Zertifikat (oben) in den Vertrauensspeicher Ihres Slicers importiert ist.',
+        fail: 'Das TLS-Zertifikat für diesen virtuellen Drucker fehlt. Prüfen Sie, ob das Bambuddy-Datenverzeichnis beschreibbar ist.',
       },
     },
   },

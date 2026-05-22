@@ -4353,6 +4353,14 @@ export default {
       metadata: '元資料',
       filename: '檔名',
     },
+    caCert: {
+      title: '切片軟體憑證',
+      description: '虛擬印表機使用由 Bambuddy CA 簽發的 TLS 憑證。將此 CA 憑證匯入切片軟體的信任庫一次，切片軟體即可接受連線 — 無需再透過命令列取得。',
+      copy: '複製',
+      copied: '已複製',
+      download: '下載',
+      fingerprint: 'SHA-256',
+    },
     howItWorks: {
       title: '工作原理',
       step1: '在同一區域網路中，虛擬印表機會透過發現機制自動出現在您的切片軟體（Bambu Studio / OrcaSlicer）中。從其他網路，透過 IP 位址和存取碼手動新增。',
@@ -5510,6 +5518,59 @@ export default {
         pass: '開發者模式已啟用。',
         fail: '印表機上的開發者模式已關閉。請在印表機的 LAN 設定中啟用它 — 並按 OK 確認。否則列印將無法開始。',
         skip: '無法檢查 — 需要與印表機的即時連線。',
+      },
+    },
+  },
+
+  vpDiagnostic: {
+    title: '設定檢查 — {{name}}',
+    runButton: '執行設定檢查',
+    running: '正在執行設定檢查...',
+    runFailed: '無法執行設定檢查：{{error}}',
+    retry: '重新執行',
+    overall: {
+      ok: '所有檢查均已通過 — 此虛擬印表機已正確設定。',
+      warnings: '虛擬印表機應該可以運作，但有些方面需要注意。',
+      problems: '發現的問題可以解釋切片軟體為何無法看到或使用此虛擬印表機。',
+    },
+    check: {
+      enabled: {
+        title: '虛擬印表機已啟用',
+        fail: '此虛擬印表機已關閉。請將其開啟以使其可被探索。',
+      },
+      running: {
+        title: '服務正在執行',
+        fail: '虛擬印表機已啟用，但其服務未執行。請檢查 Bambuddy 記錄 — 通常是繫結 IP 衝突或權限錯誤使其停止。',
+      },
+      bind_interface: {
+        title: '繫結網路介面',
+        fail: '繫結介面未設定，或在此主機上已不存在。請在「繫結介面」下拉選單中選擇一個目前的介面。',
+      },
+      access_code: {
+        title: '已設定存取碼',
+        fail: '未設定存取碼。必須向切片軟體提供與您在此處設定的相同的 8 位存取碼。',
+      },
+      target_printer: {
+        title: '目標印表機',
+        fail: '未選擇目標印表機。代理模式需要一台實際的印表機進行轉送。',
+        warn: '目標印表機目前處於離線狀態 — 重新連線後將恢復轉送。',
+      },
+      port_ftps: {
+        title: '檔案上傳服務（連接埠 {{port}}）',
+        fail: '繫結 IP 的連接埠 {{port}} 上沒有任何監聽，因此切片軟體無法上傳檔案。通常是此介面上的連接埠衝突所致。',
+      },
+      port_mqtt: {
+        title: '控制服務（連接埠 {{port}}）',
+        fail: '繫結 IP 的連接埠 {{port}} 上沒有任何監聽，因此切片軟體無法連線或顯示狀態。',
+      },
+      port_bind: {
+        title: '探索服務（連接埠 {{port}}）',
+        fail: '繫結 IP 的連接埠 {{port}} 上沒有任何監聽，因此切片軟體的探索交握會失敗。',
+      },
+      certificate: {
+        title: 'TLS 憑證',
+        pass: '憑證已就緒。請確保已將 Bambuddy CA 憑證（上方）匯入切片軟體的信任庫。',
+        fail: '此虛擬印表機的 TLS 憑證遺失。請檢查 Bambuddy 資料目錄是否可寫入。',
       },
     },
   },

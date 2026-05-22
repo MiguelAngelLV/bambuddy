@@ -4353,6 +4353,14 @@ export default {
       metadata: '元数据',
       filename: '文件名',
     },
+    caCert: {
+      title: '切片软件证书',
+      description: '虚拟打印机使用由 Bambuddy CA 签发的 TLS 证书。将此 CA 证书导入切片软件的信任库一次，切片软件即可接受连接 — 无需再通过命令行获取。',
+      copy: '复制',
+      copied: '已复制',
+      download: '下载',
+      fingerprint: 'SHA-256',
+    },
     howItWorks: {
       title: '工作原理',
       step1: '在同一局域网中，虚拟打印机会通过发现机制自动出现在您的切片软件（Bambu Studio / OrcaSlicer）中。从其他网络，通过 IP 地址和访问码手动添加。',
@@ -5510,6 +5518,59 @@ export default {
         pass: '开发者模式已启用。',
         fail: '打印机上的开发者模式已关闭。请在打印机的 LAN 设置中启用它 — 并按 OK 确认。否则打印将无法开始。',
         skip: '无法检查 — 需要与打印机的实时连接。',
+      },
+    },
+  },
+
+  vpDiagnostic: {
+    title: '设置检查 — {{name}}',
+    runButton: '运行设置检查',
+    running: '正在运行设置检查...',
+    runFailed: '无法运行设置检查：{{error}}',
+    retry: '重新运行',
+    overall: {
+      ok: '所有检查均已通过 — 此虚拟打印机已正确设置。',
+      warnings: '虚拟打印机应该可以工作，但有些方面需要注意。',
+      problems: '发现的问题可以解释切片软件为何无法看到或使用此虚拟打印机。',
+    },
+    check: {
+      enabled: {
+        title: '虚拟打印机已启用',
+        fail: '此虚拟打印机已关闭。请将其打开以使其可被发现。',
+      },
+      running: {
+        title: '服务正在运行',
+        fail: '虚拟打印机已启用，但其服务未运行。请检查 Bambuddy 日志 — 通常是绑定 IP 冲突或权限错误使其停止。',
+      },
+      bind_interface: {
+        title: '绑定网络接口',
+        fail: '绑定接口未设置，或在此主机上已不存在。请在"绑定接口"下拉菜单中选择一个当前的接口。',
+      },
+      access_code: {
+        title: '已设置访问码',
+        fail: '未设置访问码。必须向切片软件提供与您在此处设置的相同的 8 位访问码。',
+      },
+      target_printer: {
+        title: '目标打印机',
+        fail: '未选择目标打印机。代理模式需要一台实际的打印机进行转发。',
+        warn: '目标打印机当前处于离线状态 — 重新连接后将恢复转发。',
+      },
+      port_ftps: {
+        title: '文件上传服务（端口 {{port}}）',
+        fail: '绑定 IP 的端口 {{port}} 上没有任何监听，因此切片软件无法上传文件。通常是此接口上的端口冲突所致。',
+      },
+      port_mqtt: {
+        title: '控制服务（端口 {{port}}）',
+        fail: '绑定 IP 的端口 {{port}} 上没有任何监听，因此切片软件无法连接或显示状态。',
+      },
+      port_bind: {
+        title: '发现服务（端口 {{port}}）',
+        fail: '绑定 IP 的端口 {{port}} 上没有任何监听，因此切片软件的发现握手会失败。',
+      },
+      certificate: {
+        title: 'TLS 证书',
+        pass: '证书已就绪。请确保已将 Bambuddy CA 证书（上方）导入切片软件的信任库。',
+        fail: '此虚拟打印机的 TLS 证书缺失。请检查 Bambuddy 数据目录是否可写。',
       },
     },
   },
