@@ -362,6 +362,12 @@ class BambuMQTTClient:
         self._timelapse_during_print: bool = False  # Track if timelapse was active during this print
         self._last_valid_progress: float = 0.0  # Last non-zero progress (firmware resets on cancel)
         self._last_valid_layer_num: int = 0  # Last non-zero layer (firmware resets on cancel)
+        # The subtask_id minted for the most recent start_print() command. The
+        # printer echoes it back in status, but often not within the first few
+        # seconds — so on_print_start uses this as the id source when the
+        # printer hasn't reported it yet, letting queue/scheduled archives
+        # persist a restart-stable id from the moment they dispatch (#1485).
+        self.last_dispatch_subtask_id: str | None = None
         self._is_dual_nozzle: bool = False  # Set when device.extruder.info has >= 2 entries
         self._message_log: deque[MQTTLogEntry] = deque(maxlen=100)
         self._logging_enabled: bool = False
@@ -3358,6 +3364,9 @@ class BambuMQTTClient:
             # Modulo keeps uniqueness within a ~24-day wrap window; `or 1` guards
             # the (astronomically unlikely) zero case since task_id=0 is rejected.
             submission_id = str(int(time.time() * 1000) % 2_147_483_647 or 1)
+            # Remember it so on_print_start can persist a restart-stable id on
+            # the archive even before the printer echoes subtask_id back (#1485).
+            self.last_dispatch_subtask_id = submission_id
 
             command = {
                 "print": {

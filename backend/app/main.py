@@ -2039,8 +2039,23 @@ async def on_print_start(printer_id: int, data: dict):
                 # Update archive status to printing
                 archive.status = "printing"
                 archive.started_at = datetime.now(timezone.utc)
-                if subtask_id and not archive.subtask_id:
-                    archive.subtask_id = subtask_id
+                # Persist a restart-stable id so a later restart resumes this
+                # archive by subtask_id instead of name-matching + duplicating
+                # it (#1485). The printer often hasn't echoed subtask_id back
+                # this soon after dispatch, so fall back to the id Bambuddy
+                # minted when it sent the print command. Scoped to this
+                # expected-print branch on purpose: an expected match means
+                # Bambuddy dispatched this exact print in this process, so the
+                # client's last-dispatch id genuinely belongs to it — using it
+                # for an externally-started print could mis-tag the archive.
+                effective_subtask_id = subtask_id
+                if not effective_subtask_id:
+                    _client = printer_manager.get_client(printer_id)
+                    _dispatched = getattr(_client, "last_dispatch_subtask_id", None) if _client else None
+                    if _dispatched:
+                        effective_subtask_id = str(_dispatched).strip() or None
+                if effective_subtask_id and not archive.subtask_id:
+                    archive.subtask_id = effective_subtask_id
                 # #1403 follow-up: VP-queue archives are created with
                 # printer_id=None at queue-add time (we don't know which
                 # printer will run the job yet). When the print actually
@@ -2208,18 +2223,31 @@ async def on_print_start(printer_id: int, data: dict):
                 _load_objects_from_archive(existing_archive, printer_id, logger)
                 return
 
-            # Name-match only: fall back to the legacy 4h staleness heuristic.
+            # Name-match only (no subtask_id to anchor on): decide resume vs.
+            # stale from the printer's *current* progress, not wall-clock age.
+            # A genuinely long print used to trip a blind 4h cutoff and have its
+            # live archive cancelled + duplicated on every backend restart
+            # (#1485). If the printer reports real progress, this name-matched
+            # 'printing' archive IS that ongoing print — resume it whatever its
+            # age. Only treat it as a stale leftover when the printer clearly
+            # shows a different, freshly-started print: near-0% progress on an
+            # archive far too old to still be at 0%. Unknown progress (printer
+            # not connected) never cancels — resuming is the safe default.
             archive_age = datetime.now(timezone.utc) - existing_archive.created_at.replace(tzinfo=timezone.utc)
-            if archive_age.total_seconds() > 4 * 60 * 60:  # 4 hours
+            live_status = printer_manager.get_status(printer_id)
+            live_progress = getattr(live_status, "progress", None) if live_status else None
+            looks_stale = (
+                live_progress is not None and live_progress < 1.0 and archive_age.total_seconds() > 2 * 60 * 60
+            )
+            if looks_stale:
                 logger.warning(
-                    f"Found stale 'printing' archive {existing_archive.id} (age: {archive_age}), "
-                    f"marking as cancelled and creating new archive"
+                    f"Found stale 'printing' archive {existing_archive.id} (age: {archive_age}, "
+                    f"printer progress {live_progress:.0f}%) — marking cancelled and creating new archive"
                 )
                 existing_archive.status = "cancelled"
                 existing_archive.failure_reason = "Stale - print likely cancelled or failed without status update"
                 await db.commit()
                 # Fall through to create new archive (don't return)
-                _existing_archive = None  # Clear so we don't use stale archive
             else:
                 logger.info(
                     f"Skipping duplicate - already have printing archive {existing_archive.id} for {check_name}"
