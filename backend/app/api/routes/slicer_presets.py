@@ -179,7 +179,7 @@ async def _fetch_local_presets(db: AsyncSession) -> dict[str, list[UnifiedPreset
             # Precise compatibility link — the slicer's own compatible_printers
             # list, captured at import time. Lets the SliceModal filter the
             # process / filament dropdowns by the selected printer without
-            # falling back to its name-suffix heuristic.
+            # falling back to the uploaded-bundle index.
             preset.compatible_printers = _parse_compatible_printers(p.compatible_printers)
         slots[slot].append(preset)
     return slots
@@ -188,7 +188,7 @@ async def _fetch_local_presets(db: AsyncSession) -> dict[str, list[UnifiedPreset
 def _parse_compatible_printers(raw: str | None) -> list[str] | None:
     """``LocalPreset.compatible_printers`` stores a JSON array of printer-preset
     names. Return the parsed list, or ``None`` on missing / malformed data so
-    the SliceModal falls back to its name-suffix heuristic for that preset."""
+    the SliceModal falls back to the uploaded-bundle index for that preset."""
     if not raw:
         return None
     try:

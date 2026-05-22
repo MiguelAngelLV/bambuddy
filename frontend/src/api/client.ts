@@ -1325,7 +1325,7 @@ export interface UnifiedPreset {
   // compatible with. Populated for the local tier (the slicer's own
   // `compatible_printers`); null for cloud / standard. The SliceModal filters
   // the process / filament dropdowns by the selected printer using this when
-  // present, falling back to a name-suffix heuristic otherwise (#1325).
+  // present, and otherwise by the user's uploaded Slicer Bundles (#1325).
   compatible_printers?: string[] | null;
 }
 export interface UnifiedPresetsBySlot {

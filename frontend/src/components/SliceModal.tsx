@@ -20,7 +20,12 @@ import { useToast } from '../contexts/ToastContext';
 import { PlatePickerModal } from './PlatePickerModal';
 import type { PlateFilament } from '../types/plates';
 import { normalizeColorForCompare, colorsAreSimilar } from '../utils/amsHelpers';
-import { presetCompatibility, printerPresetCode } from '../utils/slicerPrinterMatch';
+import {
+  presetCompatibility,
+  buildCompatibilityIndex,
+  EMPTY_COMPATIBILITY_INDEX,
+  type PrinterCompatibilityIndex,
+} from '../utils/slicerPrinterMatch';
 
 export type SliceSource =
   | { kind: 'libraryFile'; id: number; filename: string }
@@ -87,20 +92,20 @@ function findPresetByName(
 function pickProcessDefault(
   by: UnifiedPresetsResponse,
   printerName: string | null,
-  printerCode: string | null,
+  compatIndex: PrinterCompatibilityIndex,
   preferredName?: string | null,
 ): PresetRef | null {
   const preferred = findPresetByName(by, 'process', preferredName);
   if (preferred) {
     const p = findPreset(by, preferred, 'process');
-    if (p && presetCompatibility(p, printerName, printerCode) !== 'mismatch') {
+    if (p && presetCompatibility(p, 'process', printerName, compatIndex) !== 'mismatch') {
       return preferred;
     }
   }
   for (const wanted of ['match', 'unknown'] as const) {
     for (const tier of SLICE_MODAL_TIER_ORDER) {
       for (const p of by[tier].process) {
-        if (presetCompatibility(p, printerName, printerCode) === wanted) {
+        if (presetCompatibility(p, 'process', printerName, compatIndex) === wanted) {
           return { source: p.source, id: p.id };
         }
       }
@@ -119,7 +124,7 @@ function pickFilamentForSlot(
   by: UnifiedPresetsResponse,
   required: { type: string; color: string },
   printerName: string | null,
-  printerCode: string | null,
+  compatIndex: PrinterCompatibilityIndex,
 ): PresetRef | null {
   // Score every filament preset against the plate slot's required (type,
   // colour) and pick the highest. Mirrors the AMS slot-mapping match in the
@@ -144,7 +149,7 @@ function pickFilamentForSlot(
       // Demote printer-incompatible filaments (#1325): a penalty rather than a
       // hard skip so the pick still degrades gracefully if every filament
       // mismatches the selected printer.
-      if (presetCompatibility(p, printerName, printerCode) === 'mismatch') {
+      if (presetCompatibility(p, 'filament', printerName, compatIndex) === 'mismatch') {
         score -= 100;
       }
       if (best == null || score > best.score) {
@@ -429,9 +434,12 @@ export function SliceModal({ source, onClose }: SliceModalProps) {
     if (!presetsQuery.data || !printerPreset) return null;
     return findPreset(presetsQuery.data, printerPreset, 'printer')?.name ?? null;
   }, [presetsQuery.data, printerPreset]);
-  const selectedPrinterCode = useMemo<string | null>(
-    () => (selectedPrinterName ? printerPresetCode(selectedPrinterName) : null),
-    [selectedPrinterName],
+  // Compatibility ground truth, derived from the user's uploaded Slicer
+  // Bundles (#1325) — empty until at least one bundle is imported, in which
+  // case no process / filament gets filtered (nothing to filter against).
+  const compatIndex = useMemo<PrinterCompatibilityIndex>(
+    () => buildCompatibilityIndex(bundlesQuery.data ?? []),
+    [bundlesQuery.data],
   );
 
   // Printer / process preset names the source 3MF was prepared with. The
@@ -463,13 +471,13 @@ export function SliceModal({ source, onClose }: SliceModalProps) {
     setProcessPreset((current) => {
       if (current) {
         const p = findPreset(data, current, 'process');
-        if (p && presetCompatibility(p, selectedPrinterName, selectedPrinterCode) !== 'mismatch') {
+        if (p && presetCompatibility(p, 'process', selectedPrinterName, compatIndex) !== 'mismatch') {
           return current;
         }
       }
-      return pickProcessDefault(data, selectedPrinterName, selectedPrinterCode, embeddedProcess);
+      return pickProcessDefault(data, selectedPrinterName, compatIndex, embeddedProcess);
     });
-  }, [presetsQuery.data, selectedPrinterName, selectedPrinterCode, embeddedProcess]);
+  }, [presetsQuery.data, selectedPrinterName, compatIndex, embeddedProcess]);
 
   // Filament pre-pick: re-runs when the active filament-slot count changes
   // (plate selection, single-plate metadata arriving) or the selected printer
@@ -485,7 +493,7 @@ export function SliceModal({ source, onClose }: SliceModalProps) {
         const cur = current[i] ?? null;
         if (cur) {
           const p = findPreset(data, cur, 'filament');
-          if (p && presetCompatibility(p, selectedPrinterName, selectedPrinterCode) !== 'mismatch') {
+          if (p && presetCompatibility(p, 'filament', selectedPrinterName, compatIndex) !== 'mismatch') {
             return cur;
           }
         }
@@ -493,11 +501,11 @@ export function SliceModal({ source, onClose }: SliceModalProps) {
           data,
           { type: slot.type, color: slot.color },
           selectedPrinterName,
-          selectedPrinterCode,
+          compatIndex,
         );
       });
     });
-  }, [presetsQuery.data, filamentSlots, selectedPrinterName, selectedPrinterCode]);
+  }, [presetsQuery.data, filamentSlots, selectedPrinterName, compatIndex]);
 
   // Bundle-mode auto-pick: when the user picks a bundle (or the slot count
   // changes after the picker is open), default the process to the bundle's
@@ -719,7 +727,7 @@ export function SliceModal({ source, onClose }: SliceModalProps) {
                     onChange={setProcessPreset}
                     disabled={isEnqueuing}
                     selectedPrinterName={selectedPrinterName}
-                    selectedPrinterCode={selectedPrinterCode}
+                    compatIndex={compatIndex}
                   />
                 </>
               )}
@@ -837,7 +845,7 @@ export function SliceModal({ source, onClose }: SliceModalProps) {
                       disabled={isEnqueuing || !isUsed}
                       swatchColor={filamentSlots.length > 1 ? slot.color : undefined}
                       selectedPrinterName={selectedPrinterName}
-                      selectedPrinterCode={selectedPrinterCode}
+                      compatIndex={compatIndex}
                     />
                   );
                 })
@@ -984,10 +992,11 @@ interface PresetDropdownProps {
   // configuring against the source 3MF's per-slot colour.
   swatchColor?: string;
   // Selected printer context (#1325). When provided for a process / filament
-  // slot, presets that resolve to a different printer move into a trailing
-  // "Other printers" group instead of the main tier list.
+  // slot, presets that resolve to a different printer (per the uploaded
+  // Slicer Bundles in compatIndex) move into a trailing "Other printers"
+  // group instead of the main tier list.
   selectedPrinterName?: string | null;
-  selectedPrinterCode?: string | null;
+  compatIndex?: PrinterCompatibilityIndex;
 }
 
 function PresetDropdown({
@@ -999,7 +1008,7 @@ function PresetDropdown({
   disabled,
   swatchColor,
   selectedPrinterName,
-  selectedPrinterCode,
+  compatIndex,
 }: PresetDropdownProps) {
   const { t } = useTranslation();
 
@@ -1026,8 +1035,13 @@ function PresetDropdown({
       const compatible: UnifiedPreset[] = [];
       for (const p of entries) {
         if (
-          presetCompatibility(p, selectedPrinterName ?? null, selectedPrinterCode ?? null) ===
-          'mismatch'
+          presetCompatibility(
+            p,
+            // filterByPrinter is true here, so slot is never 'printer'.
+            slot as 'process' | 'filament',
+            selectedPrinterName ?? null,
+            compatIndex ?? EMPTY_COMPATIBILITY_INDEX,
+          ) === 'mismatch'
         ) {
           other.push(p);
         } else {
@@ -1039,7 +1053,7 @@ function PresetDropdown({
       }
     }
     return { sections: compatSections, otherEntries: other };
-  }, [data, slot, t, selectedPrinterName, selectedPrinterCode]);
+  }, [data, slot, t, selectedPrinterName, compatIndex]);
 
   const totalEntries =
     sections.reduce((sum, s) => sum + s.entries.length, 0) + otherEntries.length;
