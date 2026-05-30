@@ -399,9 +399,19 @@ class SimpleMQTTServer:
     async def _periodic_status_push(self) -> None:
         """Send periodic status updates to all connected clients (1 Hz, exact pre-bridge behaviour)."""
         logger.info("Starting periodic status push task")
+        # Per-client push counters reset every 60 ticks. Lets us confirm from
+        # logs whether the 1Hz push is actually reaching a specific slicer
+        # connection (#1548 keepalive follow-up: keepalive parser shipped but
+        # OrcaSlicer still disconnects on idle, and the periodic push is
+        # otherwise silent at INFO level so it can't be observed in the
+        # support bundle). One log line per minute per active connection —
+        # nothing when no slicer is attached.
+        push_counts: dict[str, int] = {}
+        ticks_since_summary = 0
         while self._running:
             try:
                 await asyncio.sleep(1)  # Push every 1 second like real printers
+                ticks_since_summary += 1
 
                 disconnected = []
                 for client_id, writer in list(self._clients.items()):
@@ -411,6 +421,7 @@ class SimpleMQTTServer:
                             continue
                         serial = self._client_serials.get(client_id, self.serial)
                         await self._send_status_report(writer, serial=serial)
+                        push_counts[client_id] = push_counts.get(client_id, 0) + 1
                     except OSError as e:
                         logger.debug("Failed to push status to %s: %s", client_id, e)
                         disconnected.append(client_id)
@@ -419,6 +430,18 @@ class SimpleMQTTServer:
                 for client_id in disconnected:
                     self._clients.pop(client_id, None)
                     self._client_serials.pop(client_id, None)
+                    push_counts.pop(client_id, None)
+
+                if ticks_since_summary >= 60:
+                    for cid, count in push_counts.items():
+                        logger.info(
+                            "%s1Hz status push: %d pushes/min to %s",
+                            self._log_prefix,
+                            count,
+                            cid,
+                        )
+                    push_counts.clear()
+                    ticks_since_summary = 0
 
             except asyncio.CancelledError:
                 break
