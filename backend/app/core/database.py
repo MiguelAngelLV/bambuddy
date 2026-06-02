@@ -1659,9 +1659,18 @@ async def run_migrations(conn):
 
                     result = await conn.execute(text("SELECT value FROM settings WHERE key = 'virtual_printer_mode'"))
                     row = result.fetchone()
-                    old_mode = row[0] if row else "immediate"
+                    old_mode = row[0] if row else "archive"
+                    # Translate to canonical wire values (#1429 mode-label
+                    # discrepancy): legacy `immediate` → `archive`, legacy
+                    # `print_queue` → `queue`. The historical `queue` alias
+                    # for `review` predates the canonical rename and is
+                    # preserved (existing user intent was "pending review").
                     if old_mode == "queue":
                         old_mode = "review"
+                    elif old_mode == "immediate":
+                        old_mode = "archive"
+                    elif old_mode == "print_queue":
+                        old_mode = "queue"
 
                     result = await conn.execute(text("SELECT value FROM settings WHERE key = 'virtual_printer_model'"))
                     row = result.fetchone()
@@ -1691,7 +1700,7 @@ async def run_migrations(conn):
                         {
                             "name": "Bambuddy",
                             "enabled": old_enabled,
-                            "mode": old_mode or "immediate",
+                            "mode": old_mode or "archive",
                             "model": old_model,
                             "access_code": old_access_code,
                             "target_id": old_target_id,
@@ -1803,6 +1812,24 @@ async def run_migrations(conn):
         )
         await conn.execute(
             text("UPDATE settings SET value = :new WHERE key = 'virtual_printer_model' AND value = :old"),
+            {"old": old_val, "new": new_val},
+        )
+
+    # Migration: Rename VP mode wire values to match the user-facing labels
+    # (#1429 follow-up). The UI button "Archive" had always saved `immediate`
+    # and "Queue" had always saved `print_queue` — a mismatch that showed up
+    # confusingly in every support bundle. The button labels stay; the wire
+    # value is what changes. Idempotent: re-running the UPDATE on canonical
+    # values is a no-op. SQLite and Postgres both accept this statement
+    # unchanged (string literal comparison, no driver-specific syntax).
+    vp_mode_renames = [("immediate", "archive"), ("print_queue", "queue")]
+    for old_val, new_val in vp_mode_renames:
+        await conn.execute(
+            text("UPDATE virtual_printers SET mode = :new WHERE mode = :old"),
+            {"old": old_val, "new": new_val},
+        )
+        await conn.execute(
+            text("UPDATE settings SET value = :new WHERE key = 'virtual_printer_mode' AND value = :old"),
             {"old": old_val, "new": new_val},
         )
 

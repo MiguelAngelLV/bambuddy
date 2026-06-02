@@ -1124,10 +1124,14 @@ async def get_virtual_printer_settings(
     tailscale_disabled_raw = await get_setting(db, "virtual_printer_tailscale_disabled")
     archive_name_source = await get_setting(db, "virtual_printer_archive_name_source")
 
+    from backend.app.models.virtual_printer import VP_MODE_ARCHIVE, normalize_vp_mode
+
     return {
         "enabled": enabled == "true" if enabled else False,
         "access_code_set": bool(access_code),
-        "mode": mode or "immediate",
+        # Normalize on read so older settings rows (with `immediate` /
+        # `print_queue`) come out as `archive` / `queue` for the frontend.
+        "mode": normalize_vp_mode(mode) or VP_MODE_ARCHIVE,
         "model": model or DEFAULT_VIRTUAL_PRINTER_MODEL,
         "target_printer_id": int(target_printer_id) if target_printer_id else None,
         "remote_interface_ip": remote_interface_ip or "",
@@ -1168,7 +1172,9 @@ async def update_virtual_printer_settings(
     # Get current values
     current_enabled = await get_setting(db, "virtual_printer_enabled") == "true"
     current_access_code = await get_setting(db, "virtual_printer_access_code") or ""
-    current_mode = await get_setting(db, "virtual_printer_mode") or "immediate"
+    # Default to `archive` (the canonical name) but tolerate legacy `immediate`
+    # in the stored value — normalized later before validation.
+    current_mode = await get_setting(db, "virtual_printer_mode") or "archive"
     current_model = await get_setting(db, "virtual_printer_model") or DEFAULT_VIRTUAL_PRINTER_MODEL
     current_target_id_str = await get_setting(db, "virtual_printer_target_printer_id")
     current_target_id = int(current_target_id_str) if current_target_id_str else None
@@ -1186,15 +1192,21 @@ async def update_virtual_printer_settings(
     new_remote_iface = remote_interface_ip if remote_interface_ip is not None else current_remote_iface
     new_ts_disabled = tailscale_disabled if tailscale_disabled is not None else current_ts_disabled
 
-    # Validate mode
-    # "review" is the new name for "queue" (pending review before archiving)
-    # "print_queue" archives and adds to print queue (unassigned)
-    # "proxy" is transparent TCP proxy to a real printer
-    if new_mode not in ("immediate", "queue", "review", "print_queue", "proxy"):
+    # Validate mode. Canonical wire values are `archive` / `review` / `queue`
+    # / `proxy`; legacy `immediate` and `print_queue` are accepted as aliases
+    # and translated before storage so support bundles stop showing the old
+    # confusing pair (#1429 mode-label discrepancy).
+    from backend.app.models.virtual_printer import VP_MODE_VALUES, normalize_vp_mode
+
+    canonical_mode = normalize_vp_mode(new_mode)
+    if canonical_mode not in VP_MODE_VALUES:
         return JSONResponse(
             status_code=400,
-            content={"detail": "Mode must be 'immediate', 'review', 'print_queue', or 'proxy'"},
+            content={
+                "detail": f"Mode must be one of: {', '.join(VP_MODE_VALUES)}",
+            },
         )
+    new_mode = canonical_mode
 
     # Validate archive_name_source
     if archive_name_source is not None and archive_name_source not in ("metadata", "filename"):
@@ -1202,9 +1214,6 @@ async def update_virtual_printer_settings(
             status_code=400,
             content={"detail": "archive_name_source must be 'metadata' or 'filename'"},
         )
-    # Normalize legacy "queue" to "review" for storage
-    if new_mode == "queue":
-        new_mode = "review"
 
     # Validate model
     if model is not None and model not in VIRTUAL_PRINTER_MODELS:
