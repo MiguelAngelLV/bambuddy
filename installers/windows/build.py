@@ -116,6 +116,26 @@ def stage_embedded_python() -> Path:
         check=True,
     )
 
+    # Install setuptools + wheel. The embedded distribution ships without
+    # them, and get-pip.py installs only pip — but pip needs
+    # ``setuptools.build_meta`` (PEP 517 backend) to build any source-only
+    # package. Bambuddy's requirements.txt hits this with pyftpdlib 2.2.0
+    # which is sdist-only on PyPI; other source-only packages would fail
+    # the same way without this step.
+    log("installing setuptools + wheel for PEP 517 builds")
+    subprocess.run(
+        [
+            str(target / "python.exe"),
+            "-m",
+            "pip",
+            "install",
+            "--no-warn-script-location",
+            "setuptools",
+            "wheel",
+        ],
+        check=True,
+    )
+
     return target
 
 
