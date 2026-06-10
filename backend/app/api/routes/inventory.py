@@ -394,48 +394,23 @@ async def apply_spool_to_slot_via_mqtt(
         )
 
     # Persist slot preset mapping for UI display (preset_name on hover card).
-    try:
-        from backend.app.models.slot_preset import SlotPresetMapping
+    # Shared with the RFID auto-assign path — both must keep this row in sync
+    # with the currently-assigned spool, otherwise the slot card surfaces the
+    # previous spool's preset name (the PrintersPage display chain consults
+    # slot_preset_mappings.preset_name first).
+    from backend.app.services.slot_preset_writer import upsert_slot_preset_for_spool
 
-        preset_name = spool.slicer_filament_name or tray_sub_brands or tray_type
-        preset_source = "cloud"
-        if sf:
-            base_sf_mapping = sf.split("_")[0] if "_" in sf else sf
-            try:
-                int(base_sf_mapping)
-                preset_id_to_save = f"local_{base_sf_mapping}"
-                preset_source = "local"
-            except (ValueError, TypeError):
-                preset_id_to_save = filament_id_to_setting_id(tray_info_idx) if tray_info_idx else setting_id
-        else:
-            preset_id_to_save = filament_id_to_setting_id(tray_info_idx) if tray_info_idx else ""
-
-        if preset_id_to_save:
-            existing_mapping = await db.execute(
-                select(SlotPresetMapping).where(
-                    SlotPresetMapping.printer_id == printer_id,
-                    SlotPresetMapping.ams_id == ams_id,
-                    SlotPresetMapping.tray_id == tray_id,
-                )
-            )
-            mapping = existing_mapping.scalar_one_or_none()
-            if mapping:
-                mapping.preset_id = preset_id_to_save
-                mapping.preset_name = preset_name
-                mapping.preset_source = preset_source
-            else:
-                mapping = SlotPresetMapping(
-                    printer_id=printer_id,
-                    ams_id=ams_id,
-                    tray_id=tray_id,
-                    preset_id=preset_id_to_save,
-                    preset_name=preset_name,
-                    preset_source=preset_source,
-                )
-                db.add(mapping)
-            await db.commit()
-    except Exception as e:
-        logger.warning("Failed to save slot preset mapping for spool %d: %s", spool.id, e)
+    await upsert_slot_preset_for_spool(
+        db=db,
+        spool=spool,
+        printer_id=printer_id,
+        ams_id=ams_id,
+        tray_id=tray_id,
+        tray_info_idx=tray_info_idx,
+        tray_sub_brands=tray_sub_brands,
+        tray_type=tray_type,
+        setting_id=setting_id,
+    )
 
     logger.info(
         "Auto-configured AMS slot ams=%d tray=%d for spool %d on printer %d",

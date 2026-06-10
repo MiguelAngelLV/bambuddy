@@ -1695,6 +1695,24 @@ async def on_ams_change(printer_id: int, ams_data: list):
                                         printer_id,
                                         result["id"],
                                     )
+                                # Reconcile slot_preset_mappings (the same row internal
+                                # mode keeps in sync via inventory + spool_tag_matcher).
+                                # Without this the slot card surfaces the previous spool's
+                                # preset name — same bug shape, different inventory mode.
+                                from backend.app.services.slot_preset_writer import (
+                                    upsert_slot_preset_for_spoolman_spool,
+                                )
+
+                                await upsert_slot_preset_for_spoolman_spool(
+                                    db=db,
+                                    spoolman_spool=result,
+                                    tray_info_idx=tray.tray_info_idx or "",
+                                    tray_sub_brands=tray.tray_sub_brands or "",
+                                    tray_type=tray.tray_type or "",
+                                    printer_id=printer_id,
+                                    ams_id=ams_id,
+                                    tray_id=tray.tray_id,
+                                )
                     except Exception as e:
                         logger.error("Error syncing AMS %s tray %s: %s", ams_id, tray.tray_id, e)
 
