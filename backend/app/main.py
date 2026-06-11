@@ -2216,6 +2216,33 @@ async def on_print_start(printer_id: int, data: dict):
                 # Update archive status to printing
                 archive.status = "printing"
                 archive.started_at = datetime.now(timezone.utc)
+
+                # Reprint of an archive reuses the source row. Without resetting
+                # ``timelapse_path`` _scan_for_timelapse_with_retries early-returns
+                # ("already has timelapse") and _capture_finish_photo_from_timelapse
+                # extracts the *original* print's last frame, which then ships in
+                # the completion notification (#1707). Clear the path so the
+                # scanner runs fresh; also unlink the old video file so reprints
+                # don't accumulate orphans in the archive directory. Photos list
+                # is left alone — accumulating one finish photo per run is fine.
+                stale_timelapse_relpath = archive.timelapse_path
+                if stale_timelapse_relpath:
+                    archive.timelapse_path = None
+                    try:
+                        stale_path = app_settings.base_dir / stale_timelapse_relpath
+                        if stale_path.is_file():
+                            stale_path.unlink()
+                            logger.info(
+                                "Deleted stale timelapse %s on reprint of archive %s",
+                                stale_timelapse_relpath,
+                                expected_archive_id,
+                            )
+                    except OSError as e:
+                        logger.warning(
+                            "Failed to delete stale timelapse %s on reprint: %s",
+                            stale_timelapse_relpath,
+                            e,
+                        )
                 # Persist a restart-stable id so a later restart resumes this
                 # archive by subtask_id instead of name-matching + duplicating
                 # it (#1485). The printer often hasn't echoed subtask_id back
