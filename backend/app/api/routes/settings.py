@@ -346,6 +346,12 @@ _UI_PREFERENCE_FIELDS: tuple[str, ...] = (
     "ams_temp_good",
     "ams_temp_fair",
     "bed_cooled_threshold",
+    # Temperature / fan-speed presets for the printer-card popovers. Numbers
+    # only; no PII / credentials.
+    "nozzle_temp_presets",
+    "bed_temp_presets",
+    "chamber_temp_presets",
+    "fan_speed_presets",
 )
 
 
