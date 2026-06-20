@@ -147,6 +147,16 @@ export default {
       bed: '베드',
       chamber: '챔버'
     },
+    heaterHistory: {
+      title: '히터 기록',
+      openLabel: '히터 기록 보기',
+      nozzle: '노즐',
+      nozzle2: '노즐 2',
+      bed: '베드',
+      chamber: '챔버',
+      error: '기록을 불러올 수 없습니다',
+      empty: '아직 기록된 데이터가 없습니다'
+    },
     progress: '{{percent}}% 완료',
     timeRemaining: '{{time}} 남음',
     deleteConfirm: '"{{name}}"을(를) 삭제하시겠습니까?',

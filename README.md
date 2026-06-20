@@ -164,6 +164,7 @@ Optional but recommended — drop the [`slicer-api/` Compose stack](slicer-api/R
 - Configurable drying presets per filament type (temperature & duration for AMS 2 Pro and AMS-HT)
 - Dual external spool support for H2D (Ext-L / Ext-R)
 - HMS error monitoring with history and clear errors
+- **Heater history charts** — Bambuddy logs nozzle, bed, and chamber readings every minute and surfaces them via a tiny chart icon on each heater tile in the printer card. Click for a per-heater modal with current / average / min / max stats, target overlay, and a 6h / 24h / 48h / 7d time range — works on read-only chamber sensors (X1C / P2S) too. AMS humidity and temperature get the same treatment (already shipped).
 - Print success rates & trends
 - Filament usage tracking
 - Cost analytics & failure analysis

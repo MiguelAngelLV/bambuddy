@@ -81,6 +81,7 @@ import {
   MoreHorizontal,
   SlidersHorizontal,
   Stethoscope,
+  LineChart as LineChartIcon,
 } from 'lucide-react';
 
 import { useNavigate } from 'react-router-dom';
@@ -97,6 +98,8 @@ import { MQTTDebugModal } from '../components/MQTTDebugModal';
 import { HMSErrorModal, filterKnownHMSErrors } from '../components/HMSErrorModal';
 import { PrinterQueueWidget } from '../components/PrinterQueueWidget';
 import { AMSHistoryModal } from '../components/AMSHistoryModal';
+import { HeaterHistoryModal } from '../components/HeaterHistoryModal';
+import type { HeaterSensorKind } from '../api/client';
 import { FilamentHoverCard, EmptySlotHoverCard } from '../components/FilamentHoverCard';
 import { LinkSpoolModal } from '../components/LinkSpoolModal';
 import { AssignSpoolModal } from '../components/AssignSpoolModal';
@@ -1832,6 +1835,10 @@ function PrinterCard({
     amsLabel: string;
     mode: 'humidity' | 'temperature';
   } | null>(null);
+  const [heaterHistoryModal, setHeaterHistoryModal] = useState<{
+    initialKind: HeaterSensorKind;
+    availableKinds: HeaterSensorKind[];
+  } | null>(null);
   const [linkSpoolModal, setLinkSpoolModal] = useState<{
     tagUid: string;
     trayUuid: string;
@@ -3549,6 +3556,13 @@ function PrinterCard({
               const bedHeating = status.temperatures.bed_heating || false;
               const chamberHeating = status.temperatures.chamber_heating || false;
               const isDualNozzle = printer.nozzle_count === 2 || status.temperatures.nozzle_2 !== undefined;
+              const availableHeaterKinds: HeaterSensorKind[] = (() => {
+                const kinds: HeaterSensorKind[] = ['nozzle'];
+                if (status.temperatures.nozzle_2 !== undefined) kinds.push('nozzle_2');
+                kinds.push('bed');
+                if (status.temperatures.chamber !== undefined) kinds.push('chamber');
+                return kinds;
+              })();
               // active_extruder: 0=right, 1=left
               const activeNozzle = status.active_extruder === 1 ? 'L' : 'R';
               // Extended nozzle data from nozzle_rack (H2 series: wear, serial, max_temp, etc.)
@@ -3595,6 +3609,17 @@ function PrinterCard({
                       title={statusControlTitle}
                       onClick={() => canUseStatusControls && setStatusControlMenu(statusControlMenu === 'nozzle-temp' ? null : 'nozzle-temp')}
                     >
+                      <button
+                        type="button"
+                        className="absolute top-0.5 right-0.5 p-0.5 rounded text-bambu-gray hover:text-white hover:bg-white/10 transition-colors"
+                        title={t('printers.heaterHistory.openLabel', 'View heater history')}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setHeaterHistoryModal({ initialKind: 'nozzle', availableKinds: availableHeaterKinds });
+                        }}
+                      >
+                        <LineChartIcon className="w-2.5 h-2.5" />
+                      </button>
                       <HeaterThermometer className="w-3.5 h-3.5 mb-0.5" color="text-orange-400" isHeating={nozzleHeating} />
                       {status.temperatures.nozzle_2 !== undefined ? (
                         <>
@@ -3670,6 +3695,17 @@ function PrinterCard({
                       title={statusControlTitle}
                       onClick={() => canUseStatusControls && setStatusControlMenu(statusControlMenu === 'bed-temp' ? null : 'bed-temp')}
                     >
+                      <button
+                        type="button"
+                        className="absolute top-0.5 right-0.5 p-0.5 rounded text-bambu-gray hover:text-white hover:bg-white/10 transition-colors"
+                        title={t('printers.heaterHistory.openLabel', 'View heater history')}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setHeaterHistoryModal({ initialKind: 'bed', availableKinds: availableHeaterKinds });
+                        }}
+                      >
+                        <LineChartIcon className="w-2.5 h-2.5" />
+                      </button>
                       <HeaterThermometer className="w-3.5 h-3.5 mb-0.5" color="text-blue-400" isHeating={bedHeating} />
                       <p className="text-[9px] text-bambu-gray">{t('printers.temperatures.bed')}</p>
                       <p className="text-[11px] text-white">
@@ -3696,12 +3732,23 @@ function PrinterCard({
                         <div
                           className={hasChamberHeater
                             ? statusControlClass
-                            : 'text-center px-2 py-1.5 bg-bambu-dark rounded-lg flex-1 flex flex-col justify-center items-center'}
+                            : 'relative text-center px-2 py-1.5 bg-bambu-dark rounded-lg flex-1 flex flex-col justify-center items-center'}
                           title={hasChamberHeater ? statusControlTitle : undefined}
                           onClick={hasChamberHeater
                             ? () => canUseStatusControls && setStatusControlMenu(statusControlMenu === 'chamber-temp' ? null : 'chamber-temp')
                             : undefined}
                         >
+                          <button
+                            type="button"
+                            className="absolute top-0.5 right-0.5 p-0.5 rounded text-bambu-gray hover:text-white hover:bg-white/10 transition-colors"
+                            title={t('printers.heaterHistory.openLabel', 'View heater history')}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setHeaterHistoryModal({ initialKind: 'chamber', availableKinds: availableHeaterKinds });
+                            }}
+                          >
+                            <LineChartIcon className="w-2.5 h-2.5" />
+                          </button>
                           <HeaterThermometer className="w-3.5 h-3.5 mb-0.5" color="text-green-400" isHeating={chamberHeating} />
                           <p className="text-[9px] text-bambu-gray">{t('printers.temperatures.chamber')}</p>
                           <p className="text-[11px] text-white">
@@ -5937,6 +5984,18 @@ function PrinterCard({
           amsLabel={amsHistoryModal.amsLabel}
           initialMode={amsHistoryModal.mode}
           thresholds={amsThresholds}
+        />
+      )}
+
+      {/* Heater History Modal (nozzle / bed / chamber) */}
+      {heaterHistoryModal && (
+        <HeaterHistoryModal
+          isOpen={!!heaterHistoryModal}
+          onClose={() => setHeaterHistoryModal(null)}
+          printerId={printer.id}
+          printerName={printer.name}
+          initialKind={heaterHistoryModal.initialKind}
+          availableKinds={heaterHistoryModal.availableKinds}
         />
       )}
 
