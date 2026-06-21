@@ -159,6 +159,7 @@ async def _build_settings_response(db: AsyncSession, is_api_key: bool = False) -
             "stagger_group_size",
             "stagger_interval_minutes",
             "forecast_global_lead_time_days",
+            "session_max_hours",
         ]:
             settings_dict[setting.key] = int(setting.value)
         elif setting.key == "default_printer_id":
@@ -345,6 +346,12 @@ _UI_PREFERENCE_FIELDS: tuple[str, ...] = (
     "ams_temp_good",
     "ams_temp_fair",
     "bed_cooled_threshold",
+    # Temperature / fan-speed presets for the printer-card popovers. Numbers
+    # only; no PII / credentials.
+    "nozzle_temp_presets",
+    "bed_temp_presets",
+    "chamber_temp_presets",
+    "fan_speed_presets",
 )
 
 
@@ -445,8 +452,16 @@ async def update_spoolman_settings(
     if "spoolman_report_partial_usage" in settings:
         await set_setting(db, "spoolman_report_partial_usage", settings["spoolman_report_partial_usage"])
 
+    spoolman_changed = "spoolman_enabled" in settings or "spoolman_url" in settings
+
     await db.commit()
     db.expire_all()
+
+    if spoolman_changed:
+        from backend.app.services.location_service import maybe_sync_spoolman_locations
+
+        if await maybe_sync_spoolman_locations(db):
+            await db.commit()
 
     # Return updated settings
     return await get_spoolman_settings(db)

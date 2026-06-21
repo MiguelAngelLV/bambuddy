@@ -240,6 +240,20 @@ class AppSettings(BaseModel):
         description="Low stock threshold percentage (%) for inventory filtering and display",
     )
 
+    # Session policy (#1706) — admin-set ceiling for user session lifetime.
+    # Default 24h preserves the M-2 audit reduction from 7 days. Max 720h
+    # (30 days) bounds blast radius if an admin chooses a long session.
+    session_max_hours: int = Field(
+        default=24,
+        ge=1,
+        le=720,
+        description=(
+            "Maximum session lifetime in hours for user logins (default 24, max 720). "
+            "Applies to new logins only; already-issued tokens keep their original expiry. "
+            "Longer sessions reduce automatic logout protection."
+        ),
+    )
+
     # User email notifications (requires Advanced Authentication)
     user_notifications_enabled: bool = Field(
         default=True,
@@ -277,6 +291,27 @@ class AppSettings(BaseModel):
     queue_shortest_first: bool = Field(
         default=False,
         description="Shortest Job First — scheduler prioritizes shorter print jobs over longer ones",
+    )
+
+    # User-configurable presets for the printer-card temperature / fan-speed
+    # popovers. Each is a JSON array of exactly 3 ints (the "Off" button is
+    # rendered separately and is not configurable). Empty string = use built-in
+    # defaults. Validators on AppSettingsUpdate enforce the shape on writes.
+    nozzle_temp_presets: str = Field(
+        default="",
+        description="JSON array of 3 nozzle-temperature preset values in C (0-320). Empty = use defaults [120, 220, 260]",
+    )
+    bed_temp_presets: str = Field(
+        default="",
+        description="JSON array of 3 bed-temperature preset values in C (0-140). Empty = use defaults [55, 75, 90]",
+    )
+    chamber_temp_presets: str = Field(
+        default="",
+        description="JSON array of 3 chamber-temperature preset values in C (0-60). Empty = use defaults [35, 45, 60]",
+    )
+    fan_speed_presets: str = Field(
+        default="",
+        description="JSON array of 3 fan-speed preset values in % (0-100). Empty = use defaults [50, 75, 100]",
     )
 
     # LDAP authentication (#794)
@@ -414,6 +449,7 @@ class AppSettingsUpdate(BaseModel):
     prometheus_enabled: bool | None = None
     prometheus_token: str | None = None
     low_stock_threshold: float | None = Field(default=None, ge=0.1, le=99.9)
+    session_max_hours: int | None = Field(default=None, ge=1, le=720)
     user_notifications_enabled: bool | None = None
     default_bed_levelling: bool | None = None
     default_flow_cali: bool | None = None
@@ -425,6 +461,10 @@ class AppSettingsUpdate(BaseModel):
     stagger_interval_minutes: int | None = Field(default=None, ge=1, le=60)
     require_plate_clear: bool | None = None
     queue_shortest_first: bool | None = None
+    nozzle_temp_presets: str | None = None
+    bed_temp_presets: str | None = None
+    chamber_temp_presets: str | None = None
+    fan_speed_presets: str | None = None
     gcode_snippets: str | None = None
     local_backup_enabled: bool | None = None
     local_backup_schedule: str | None = None
@@ -489,6 +529,43 @@ class AppSettingsUpdate(BaseModel):
             raise ValueError("obico_enabled_printers must be a JSON array of printer IDs (integers)")
         return v
 
+    @staticmethod
+    def _validate_preset_triple(v: str | None, field_name: str, lo: int, hi: int) -> str | None:
+        """Validate a JSON array of exactly 3 ints in [lo, hi]. Empty = defaults."""
+        if v is None or v == "":
+            return v
+        try:
+            parsed = json.loads(v)
+        except json.JSONDecodeError:
+            raise ValueError(f"{field_name} must be valid JSON or empty")
+        if not isinstance(parsed, list) or len(parsed) != 3:
+            raise ValueError(f"{field_name} must be a JSON array of exactly 3 integers")
+        if not all(isinstance(item, int) and not isinstance(item, bool) for item in parsed):
+            raise ValueError(f"{field_name} entries must all be integers")
+        if not all(lo <= item <= hi for item in parsed):
+            raise ValueError(f"{field_name} entries must each be in [{lo}, {hi}]")
+        return v
+
+    @field_validator("nozzle_temp_presets")
+    @classmethod
+    def validate_nozzle_temp_presets(cls, v: str | None) -> str | None:
+        return cls._validate_preset_triple(v, "nozzle_temp_presets", 0, 320)
+
+    @field_validator("bed_temp_presets")
+    @classmethod
+    def validate_bed_temp_presets(cls, v: str | None) -> str | None:
+        return cls._validate_preset_triple(v, "bed_temp_presets", 0, 140)
+
+    @field_validator("chamber_temp_presets")
+    @classmethod
+    def validate_chamber_temp_presets(cls, v: str | None) -> str | None:
+        return cls._validate_preset_triple(v, "chamber_temp_presets", 0, 60)
+
+    @field_validator("fan_speed_presets")
+    @classmethod
+    def validate_fan_speed_presets(cls, v: str | None) -> str | None:
+        return cls._validate_preset_triple(v, "fan_speed_presets", 0, 100)
+
     @field_validator("obico_sensitivity")
     @classmethod
     def validate_obico_sensitivity(cls, v: str | None) -> str | None:
@@ -518,6 +595,11 @@ class AppSettingsUpdate(BaseModel):
             raise ValueError("default_sidebar_order must be valid JSON or empty")
         if isinstance(parsed, dict):
             order = parsed.get("order")
+            hidden_system_item_ids = parsed.get("hiddenSystemItemIds", [])
+            if not isinstance(hidden_system_item_ids, list) or not all(
+                isinstance(item, str) for item in hidden_system_item_ids
+            ):
+                raise ValueError("sidebar hidden system item IDs must be an array of strings")
         elif isinstance(parsed, list):
             order = parsed
         else:
