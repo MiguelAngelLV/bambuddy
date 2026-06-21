@@ -16,7 +16,7 @@ env:
   FORK_SUFFIX: autoamsslot
   CUSTOM_BRANCH: feature/auto-assign-spool-to-next-ams-slot
   UPSTREAM_REPO: maziggy/bambuddy
-  DOCKER_IMAGE: ghcr.io/miguelangellvl/bambuddy
+  DOCKER_IMAGE: ghcr.io/miguelangellv/bambuddy
 
 permissions:
   contents: write
