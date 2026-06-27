@@ -1022,6 +1022,27 @@ export default {
     },
   },
 
+  // Sticky upload-progress toast (#1625 follow-up)
+  dispatchToast: {
+    untitled: '印刷ジョブ',
+    startingPrints: '印刷を開始しています',
+    progressSummary: '{{complete}}/{{total}} 完了 • 処理中: {{processing}}',
+    expandDetails: '送信の詳細を表示',
+    collapseDetails: '送信の詳細を非表示',
+    awaitingPrinter: 'プリンターを待機中…',
+    status: {
+      processing: '処理中',
+      completed: '完了',
+      failed: '失敗',
+    },
+    failed: {
+      generic: '送信に失敗しました',
+      upload_failed: 'プリンターへのアップロードに失敗しました',
+      start_command_failed: 'プリンターが開始コマンドを拒否しました',
+    },
+    dismiss: '閉じる',
+  },
+
   // Queue page
   queue: {
     filamentShort: {

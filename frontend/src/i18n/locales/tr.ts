@@ -1023,6 +1023,27 @@ export default {
     },
   },
 
+  // Sticky upload-progress toast (#1625 follow-up)
+  dispatchToast: {
+    untitled: 'Yazdırma işi',
+    startingPrints: 'Yazdırmalar başlatılıyor',
+    progressSummary: '{{complete}}/{{total}} tamamlandı • İşleniyor: {{processing}}',
+    expandDetails: 'Gönderim ayrıntılarını genişlet',
+    collapseDetails: 'Gönderim ayrıntılarını daralt',
+    awaitingPrinter: 'Yazıcı bekleniyor…',
+    status: {
+      processing: 'İşleniyor',
+      completed: 'Tamamlandı',
+      failed: 'Başarısız',
+    },
+    failed: {
+      generic: 'Gönderim başarısız',
+      upload_failed: 'Yazıcıya yükleme başarısız',
+      start_command_failed: 'Yazıcı başlatma komutunu reddetti',
+    },
+    dismiss: 'Kapat',
+  },
+
   // Kuyruk sayfası
   queue: {
     title: 'Baskı Kuyruğu',

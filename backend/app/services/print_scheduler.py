@@ -14,6 +14,7 @@ from sqlalchemy.orm import selectinload
 from backend.app.core.config import settings
 from backend.app.core.database import async_session, run_with_retry
 from backend.app.core.tasks import spawn_background_task
+from backend.app.core.websocket import ws_manager
 from backend.app.models.archive import PrintArchive
 from backend.app.models.library import LibraryFile
 from backend.app.models.print_queue import PrintQueueItem
@@ -41,6 +42,77 @@ from backend.app.utils.filename import derive_remote_filename
 from backend.app.utils.printer_models import normalize_printer_model
 
 logger = logging.getLogger(__name__)
+
+# Dispatch-toast progress throttling (#1625 follow-up). Mirrors the legacy
+# background_dispatch.py upload_progress_callback (200 ms time gate + 256 KB
+# byte gate) from before the scheduler unification. Time gate keeps small
+# files from going silent (a single 8 KB chunk fires once and that's it);
+# byte gate caps the broadcast rate on slow LAN where 200 ms covers many
+# chunks. uploaded >= total always emits so the bar closes cleanly even on
+# sub-200 ms files.
+_DISPATCH_PROGRESS_BYTE_STEP = 256 * 1024
+_DISPATCH_PROGRESS_MIN_INTERVAL_SECS = 0.2
+
+
+class _UploadProgressBridge:
+    """Thread-safe bridge from ``upload_file_async`` to the WS broadcaster.
+
+    ``upload_file_async`` runs the FTP transfer in an executor thread and
+    invokes its ``progress_callback`` from that thread, so the callback
+    body cannot ``await`` directly. This bridge captures the asyncio loop
+    at construction (on the scheduler thread) and uses
+    ``run_coroutine_threadsafe`` to hop back. The byte/time throttle
+    matches the legacy background_dispatch.py path 1:1 so the toast feels
+    identical to the pre-#1625 experience.
+
+    Failures inside the emit are swallowed — progress is a UX nicety, the
+    upload itself must not fail because of a WS hiccup.
+    """
+
+    def __init__(self, user_id: int | None, queue_item_id: int):
+        self._user_id = user_id
+        self._queue_item_id = queue_item_id
+        try:
+            self._loop = asyncio.get_running_loop()
+        except RuntimeError:
+            self._loop = None
+        self._last_emit_bytes = 0
+        self._last_emit_monotonic = 0.0
+        self._has_emitted = False
+
+    def __call__(self, bytes_transferred: int, total_bytes: int) -> None:
+        if self._loop is None or total_bytes <= 0:
+            return
+        now = time.monotonic()
+        # Mirrors legacy bg-dispatch: emit if first call OR upload complete
+        # OR 200 ms elapsed OR ≥256 KB transferred since last emit. Two of
+        # the four matter most: first-call so the user sees something even
+        # for sub-chunk-size files; uploaded >= total so the bar locks at
+        # 100% even when the throttle would otherwise eat it.
+        should_emit = (
+            not self._has_emitted
+            or bytes_transferred >= total_bytes
+            or now - self._last_emit_monotonic >= _DISPATCH_PROGRESS_MIN_INTERVAL_SECS
+            or bytes_transferred - self._last_emit_bytes >= _DISPATCH_PROGRESS_BYTE_STEP
+        )
+        if not should_emit:
+            return
+        self._has_emitted = True
+        self._last_emit_bytes = bytes_transferred
+        self._last_emit_monotonic = now
+        try:
+            asyncio.run_coroutine_threadsafe(
+                ws_manager.send_queue_item_upload_progress(
+                    user_id=self._user_id,
+                    queue_item_id=self._queue_item_id,
+                    bytes_transferred=bytes_transferred,
+                    total_bytes=total_bytes,
+                ),
+                self._loop,
+            )
+        except Exception:
+            pass  # progress is best-effort, never block the upload
+
 
 # Bambu firmware states that mean the project_file has actually been accepted
 # and the printer is now processing / running / paused mid-print. Used by the
@@ -2285,6 +2357,28 @@ class PrintScheduler:
         except Exception as e:
             logger.debug("Queue item %s: Delete failed (may not exist): %s", item.id, e)
 
+        # Dispatch toast — announce the upload start with the total byte
+        # count so the frontend can render an honest progress bar.
+        toast_uid = item.created_by_id
+        toast_file_name = filename.replace(".gcode.3mf", "").replace(".3mf", "")
+        try:
+            total_bytes = file_path.stat().st_size
+        except OSError:
+            total_bytes = 0
+        try:
+            await ws_manager.send_queue_item_uploading(
+                user_id=toast_uid,
+                queue_item_id=item.id,
+                printer_id=item.printer_id,
+                printer_name=printer.name,
+                file_name=toast_file_name,
+                total_bytes=total_bytes,
+            )
+        except Exception:
+            pass  # toast is best-effort
+
+        progress_bridge = _UploadProgressBridge(toast_uid, item.id)
+
         try:
             if ftp_retry_enabled:
                 uploaded = await with_ftp_retry(
@@ -2295,6 +2389,7 @@ class PrintScheduler:
                     remote_path,
                     socket_timeout=ftp_timeout,
                     printer_model=printer.model,
+                    progress_callback=progress_bridge,
                     max_retries=ftp_retry_count,
                     retry_delay=ftp_retry_delay,
                     operation_name=f"Upload print to {printer.name}",
@@ -2307,6 +2402,7 @@ class PrintScheduler:
                     remote_path,
                     socket_timeout=ftp_timeout,
                     printer_model=printer.model,
+                    progress_callback=progress_bridge,
                 )
         except Exception as e:
             uploaded = False
@@ -2338,6 +2434,15 @@ class PrintScheduler:
                 reason="Failed to upload file to printer",
                 db=db,
             )
+            try:
+                await ws_manager.send_queue_item_failed(
+                    user_id=toast_uid,
+                    queue_item_id=item.id,
+                    printer_id=item.printer_id,
+                    reason="upload_failed",
+                )
+            except Exception:
+                pass
             await self._power_off_if_needed(db, item)
             return
 
@@ -2439,6 +2544,13 @@ class PrintScheduler:
 
         if started:
             logger.info("Queue item %s: Print started successfully - %s", item.id, filename)
+            # No dispatch-toast event here: the legacy bg-dispatch path kept
+            # status='processing' from upload start until the printer acked
+            # (or timed out). The frontend derives "Awaiting printer…" purely
+            # from upload_progress_pct >= 99.9; an explicit 'dispatched' WS
+            # event would push the status chip out of 'PROCESSING' prematurely
+            # — which is exactly what the screenshot at #1625-followup
+            # complained about.
 
             # Register the local 3MF in the cover-cache so /cover skips FTP
             # (#1166 follow-up). file_path was resolved earlier from either the
@@ -2468,6 +2580,7 @@ class PrintScheduler:
                         pre_state,
                         pre_subtask_id,
                         pre_gcode_file,
+                        created_by_id=toast_uid,
                     ),
                     name=f"watchdog-print-start-{item.id}",
                 )
@@ -2533,6 +2646,15 @@ class PrintScheduler:
                 reason="Failed to send print command to printer - check printer connection and status",
                 db=db,
             )
+            try:
+                await ws_manager.send_queue_item_failed(
+                    user_id=toast_uid,
+                    queue_item_id=item.id,
+                    printer_id=item.printer_id,
+                    reason="start_command_failed",
+                )
+            except Exception:
+                pass
 
             await self._power_off_if_needed(db, item)
 
@@ -2546,6 +2668,7 @@ class PrintScheduler:
         timeout: float = 90.0,
         phase_b_timeout: float = 180.0,
         poll_interval: float = 3.0,
+        created_by_id: int | None = None,
     ) -> None:
         """Revert a queue item if the printer never acknowledges the start command.
 
@@ -2597,6 +2720,14 @@ class PrintScheduler:
                 # would otherwise look like "command landed" and leave the
                 # queue item stuck in 'printing' forever (#1370).
                 scheduler._release_dispatch_hold(printer_id)
+                try:
+                    await ws_manager.send_queue_item_acked(
+                        user_id=created_by_id,
+                        queue_item_id=queue_item_id,
+                        printer_id=printer_id,
+                    )
+                except Exception:
+                    pass
                 return
             if pre_subtask_id is not None and status.subtask_id is not None and status.subtask_id != pre_subtask_id:
                 # Phase A exit — printer accepted the file (subtask_id flipped
@@ -2618,6 +2749,14 @@ class PrintScheduler:
                 last_status = status
                 if status.state in _ACTIVE_PRINT_STATES:
                     scheduler._release_dispatch_hold(printer_id)
+                    try:
+                        await ws_manager.send_queue_item_acked(
+                            user_id=created_by_id,
+                            queue_item_id=queue_item_id,
+                            printer_id=printer_id,
+                        )
+                    except Exception:
+                        pass
                     return
 
         # No active-state transition. Revert the item so the scheduler can retry.

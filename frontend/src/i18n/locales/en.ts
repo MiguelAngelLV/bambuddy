@@ -1027,6 +1027,29 @@ export default {
     },
   },
 
+  // Sticky upload-progress toast (#1625 follow-up — restored the
+  // legacy bg-dispatch toast UI for the scheduler-driven dispatch path).
+  // Strings mirror 0b43ac0d's backgroundDispatch namespace.
+  dispatchToast: {
+    untitled: 'Print job',
+    startingPrints: 'Starting prints',
+    progressSummary: '{{complete}}/{{total}} complete • Processing: {{processing}}',
+    expandDetails: 'Expand dispatch details',
+    collapseDetails: 'Collapse dispatch details',
+    awaitingPrinter: 'Awaiting printer…',
+    status: {
+      processing: 'Processing',
+      completed: 'Completed',
+      failed: 'Failed',
+    },
+    failed: {
+      generic: 'Dispatch failed',
+      upload_failed: 'Upload to printer failed',
+      start_command_failed: 'Printer rejected start command',
+    },
+    dismiss: 'Dismiss',
+  },
+
   // Queue page
   queue: {
     title: 'Print Queue',

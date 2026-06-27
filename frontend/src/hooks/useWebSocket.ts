@@ -383,6 +383,22 @@ export function useWebSocket() {
         debouncedInvalidate('spoolbuddy-devices');
         debouncedInvalidate('spoolbuddy-update-check');
         break;
+
+      // Dispatch toast lifecycle (#1625 follow-up — restored the upload
+      // progress UI that the scheduler unification removed). Four backend
+      // event types collapse to one frontend channel. No
+      // `queue_item_queued` (the toast must wait for the upload to
+      // actually start) and no `queue_item_dispatched` (the legacy
+      // background-dispatch flow kept status='processing' from upload
+      // start until printer ack — the "Awaiting printer…" subtitle is
+      // derived from upload_progress_pct >= 99.9, not from a separate
+      // event).
+      case 'queue_item_uploading':
+      case 'queue_item_upload_progress':
+      case 'queue_item_acked':
+      case 'queue_item_failed':
+        window.dispatchEvent(new CustomEvent('bambuddy:dispatch-toast', { detail: message }));
+        break;
     }
   }, [queryClient, debouncedInvalidate, throttledPrinterStatusUpdate, showToast, t]);
 

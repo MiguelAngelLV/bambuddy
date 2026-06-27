@@ -1023,6 +1023,27 @@ export default {
     },
   },
 
+  // Sticky upload-progress toast (#1625 follow-up)
+  dispatchToast: {
+    untitled: 'Trabalho de impressão',
+    startingPrints: 'Iniciando impressões',
+    progressSummary: '{{complete}}/{{total}} concluídas • Processando: {{processing}}',
+    expandDetails: 'Expandir detalhes do envio',
+    collapseDetails: 'Recolher detalhes do envio',
+    awaitingPrinter: 'Aguardando impressora…',
+    status: {
+      processing: 'Processando',
+      completed: 'Concluída',
+      failed: 'Falhou',
+    },
+    failed: {
+      generic: 'Falha no envio',
+      upload_failed: 'Falha ao enviar para a impressora',
+      start_command_failed: 'Impressora rejeitou o comando de início',
+    },
+    dismiss: 'Fechar',
+  },
+
   // Queue page
   queue: {
     filamentShort: {

@@ -1023,6 +1023,27 @@ export default {
     },
   },
 
+  // Sticky upload-progress toast (#1625 follow-up)
+  dispatchToast: {
+    untitled: '打印任务',
+    startingPrints: '正在开始打印',
+    progressSummary: '{{complete}}/{{total}} 已完成 • 处理中: {{processing}}',
+    expandDetails: '展开派发详情',
+    collapseDetails: '收起派发详情',
+    awaitingPrinter: '等待打印机响应…',
+    status: {
+      processing: '处理中',
+      completed: '已完成',
+      failed: '失败',
+    },
+    failed: {
+      generic: '派发失败',
+      upload_failed: '上传到打印机失败',
+      start_command_failed: '打印机拒绝了开始命令',
+    },
+    dismiss: '关闭',
+  },
+
   // Queue page
   queue: {
     filamentShort: {

@@ -1023,6 +1023,27 @@ export default {
     },
   },
 
+  // Sticky upload-progress toast (#1625 follow-up)
+  dispatchToast: {
+    untitled: 'Lavoro di stampa',
+    startingPrints: 'Avvio delle stampe',
+    progressSummary: '{{complete}}/{{total}} completate • In corso: {{processing}}',
+    expandDetails: 'Espandi i dettagli dell\'invio',
+    collapseDetails: 'Comprimi i dettagli dell\'invio',
+    awaitingPrinter: 'In attesa della stampante…',
+    status: {
+      processing: 'In corso',
+      completed: 'Completata',
+      failed: 'Fallita',
+    },
+    failed: {
+      generic: 'Invio fallito',
+      upload_failed: 'Caricamento sulla stampante fallito',
+      start_command_failed: 'La stampante ha rifiutato il comando di avvio',
+    },
+    dismiss: 'Chiudi',
+  },
+
   // Queue page
   queue: {
     filamentShort: {

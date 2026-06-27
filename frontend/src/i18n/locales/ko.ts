@@ -979,6 +979,25 @@ export default {
       }
     }
   },
+  dispatchToast: {
+    untitled: '인쇄 작업',
+    startingPrints: '인쇄 시작 중',
+    progressSummary: '{{complete}}/{{total}} 완료 • 처리 중: {{processing}}',
+    expandDetails: '디스패치 세부 정보 펼치기',
+    collapseDetails: '디스패치 세부 정보 접기',
+    awaitingPrinter: '프린터 응답 대기 중…',
+    status: {
+      processing: '처리 중',
+      completed: '완료',
+      failed: '실패',
+    },
+    failed: {
+      generic: '디스패치 실패',
+      upload_failed: '프린터로 업로드 실패',
+      start_command_failed: '프린터가 시작 명령을 거부했습니다',
+    },
+    dismiss: '닫기',
+  },
   queue: {
     title: '인쇄 대기열',
     subtitle: '인쇄 작업을 예약하고 관리하세요',

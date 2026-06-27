@@ -1023,6 +1023,27 @@ export default {
     },
   },
 
+  // Sticky upload-progress toast (#1625 follow-up)
+  dispatchToast: {
+    untitled: 'Druckjob',
+    startingPrints: 'Drucke starten',
+    progressSummary: '{{complete}}/{{total}} fertig • Verarbeitung: {{processing}}',
+    expandDetails: 'Versanddetails ausklappen',
+    collapseDetails: 'Versanddetails einklappen',
+    awaitingPrinter: 'Warte auf Drucker…',
+    status: {
+      processing: 'Verarbeitung',
+      completed: 'Fertig',
+      failed: 'Fehlgeschlagen',
+    },
+    failed: {
+      generic: 'Versand fehlgeschlagen',
+      upload_failed: 'Upload zum Drucker fehlgeschlagen',
+      start_command_failed: 'Drucker hat Startbefehl abgelehnt',
+    },
+    dismiss: 'Schließen',
+  },
+
   // Queue page
   queue: {
     filamentShort: {
